@@ -1,0 +1,14 @@
+{
+  "timestamp": "2025-11-29T19:06:04.481381",
+  "energy_model": "WidomInspiredQuasicrystalHamiltonian",
+  "vertex_energy_hierarchy": {
+    "high_energy_defect": 2.0,
+    "medium_energy_strained": 1.0,
+    "low_energy_ideal": 0.0
+  },
+  "interaction_terms": {
+    "neighbor_elastic_coupling": 0.1,
+    "geometric_strain_penalty": 0.2,
+    "phason_strain_penalty": 0.0
+  }
+}

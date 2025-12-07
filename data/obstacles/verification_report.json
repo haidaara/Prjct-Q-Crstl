@@ -1,0 +1,405 @@
+{
+  "timestamp": 1764184745.640962,
+  "total_checks": 66,
+  "passed_checks": 66,
+  "failed_checks": 0,
+  "success_rate": 100.0,
+  "results": [
+    {
+      "test": "Adjacency graph keys are strings",
+      "spec": "pores_density_0.005",
+      "status": "PASS",
+      "details": "Found 4406 adjacency entries"
+    },
+    {
+      "test": "Removed tiles have empty neighbor lists",
+      "spec": "pores_density_0.005",
+      "status": "PASS",
+      "details": "Checked 95 removed tiles"
+    },
+    {
+      "test": "Pores have positions and radii",
+      "spec": "pores_density_0.005",
+      "status": "PASS",
+      "details": "Positions: 1, Radii: 1"
+    },
+    {
+      "test": "Pore positions and radii arrays match",
+      "spec": "pores_density_0.005",
+      "status": "PASS",
+      "details": "Positions: 1, Radii: 1"
+    },
+    {
+      "test": "No contradictory tile states (removed + immobile)",
+      "spec": "pores_density_0.005",
+      "status": "PASS",
+      "details": "Found 0 contradictory tiles"
+    },
+    {
+      "test": "Obstacle metadata complete",
+      "spec": "pores_density_0.005",
+      "status": "PASS",
+      "details": "Type: pores, Density: 0.005"
+    },
+    {
+      "test": "Adjacency graph keys are strings",
+      "spec": "pores_density_0.01",
+      "status": "PASS",
+      "details": "Found 4406 adjacency entries"
+    },
+    {
+      "test": "Removed tiles have empty neighbor lists",
+      "spec": "pores_density_0.01",
+      "status": "PASS",
+      "details": "Checked 95 removed tiles"
+    },
+    {
+      "test": "Pores have positions and radii",
+      "spec": "pores_density_0.01",
+      "status": "PASS",
+      "details": "Positions: 1, Radii: 1"
+    },
+    {
+      "test": "Pore positions and radii arrays match",
+      "spec": "pores_density_0.01",
+      "status": "PASS",
+      "details": "Positions: 1, Radii: 1"
+    },
+    {
+      "test": "No contradictory tile states (removed + immobile)",
+      "spec": "pores_density_0.01",
+      "status": "PASS",
+      "details": "Found 0 contradictory tiles"
+    },
+    {
+      "test": "Obstacle metadata complete",
+      "spec": "pores_density_0.01",
+      "status": "PASS",
+      "details": "Type: pores, Density: 0.01"
+    },
+    {
+      "test": "Adjacency graph keys are strings",
+      "spec": "pores_density_0.02",
+      "status": "PASS",
+      "details": "Found 4406 adjacency entries"
+    },
+    {
+      "test": "Removed tiles have empty neighbor lists",
+      "spec": "pores_density_0.02",
+      "status": "PASS",
+      "details": "Checked 95 removed tiles"
+    },
+    {
+      "test": "Pores have positions and radii",
+      "spec": "pores_density_0.02",
+      "status": "PASS",
+      "details": "Positions: 1, Radii: 1"
+    },
+    {
+      "test": "Pore positions and radii arrays match",
+      "spec": "pores_density_0.02",
+      "status": "PASS",
+      "details": "Positions: 1, Radii: 1"
+    },
+    {
+      "test": "No contradictory tile states (removed + immobile)",
+      "spec": "pores_density_0.02",
+      "status": "PASS",
+      "details": "Found 0 contradictory tiles"
+    },
+    {
+      "test": "Obstacle metadata complete",
+      "spec": "pores_density_0.02",
+      "status": "PASS",
+      "details": "Type: pores, Density: 0.02"
+    },
+    {
+      "test": "Adjacency graph keys are strings",
+      "spec": "pores_density_0.03",
+      "status": "PASS",
+      "details": "Found 4406 adjacency entries"
+    },
+    {
+      "test": "Removed tiles have empty neighbor lists",
+      "spec": "pores_density_0.03",
+      "status": "PASS",
+      "details": "Checked 95 removed tiles"
+    },
+    {
+      "test": "Pores have positions and radii",
+      "spec": "pores_density_0.03",
+      "status": "PASS",
+      "details": "Positions: 1, Radii: 1"
+    },
+    {
+      "test": "Pore positions and radii arrays match",
+      "spec": "pores_density_0.03",
+      "status": "PASS",
+      "details": "Positions: 1, Radii: 1"
+    },
+    {
+      "test": "No contradictory tile states (removed + immobile)",
+      "spec": "pores_density_0.03",
+      "status": "PASS",
+      "details": "Found 0 contradictory tiles"
+    },
+    {
+      "test": "Obstacle metadata complete",
+      "spec": "pores_density_0.03",
+      "status": "PASS",
+      "details": "Type: pores, Density: 0.03"
+    },
+    {
+      "test": "Adjacency graph keys are strings",
+      "spec": "pores_density_0.05",
+      "status": "PASS",
+      "details": "Found 4406 adjacency entries"
+    },
+    {
+      "test": "Removed tiles have empty neighbor lists",
+      "spec": "pores_density_0.05",
+      "status": "PASS",
+      "details": "Checked 193 removed tiles"
+    },
+    {
+      "test": "Pores have positions and radii",
+      "spec": "pores_density_0.05",
+      "status": "PASS",
+      "details": "Positions: 2, Radii: 2"
+    },
+    {
+      "test": "Pore positions and radii arrays match",
+      "spec": "pores_density_0.05",
+      "status": "PASS",
+      "details": "Positions: 2, Radii: 2"
+    },
+    {
+      "test": "No contradictory tile states (removed + immobile)",
+      "spec": "pores_density_0.05",
+      "status": "PASS",
+      "details": "Found 0 contradictory tiles"
+    },
+    {
+      "test": "Obstacle metadata complete",
+      "spec": "pores_density_0.05",
+      "status": "PASS",
+      "details": "Type: pores, Density: 0.05"
+    },
+    {
+      "test": "Adjacency graph keys are strings",
+      "spec": "pores_density_0.1",
+      "status": "PASS",
+      "details": "Found 4406 adjacency entries"
+    },
+    {
+      "test": "Removed tiles have empty neighbor lists",
+      "spec": "pores_density_0.1",
+      "status": "PASS",
+      "details": "Checked 481 removed tiles"
+    },
+    {
+      "test": "Pores have positions and radii",
+      "spec": "pores_density_0.1",
+      "status": "PASS",
+      "details": "Positions: 5, Radii: 5"
+    },
+    {
+      "test": "Pore positions and radii arrays match",
+      "spec": "pores_density_0.1",
+      "status": "PASS",
+      "details": "Positions: 5, Radii: 5"
+    },
+    {
+      "test": "No contradictory tile states (removed + immobile)",
+      "spec": "pores_density_0.1",
+      "status": "PASS",
+      "details": "Found 0 contradictory tiles"
+    },
+    {
+      "test": "Obstacle metadata complete",
+      "spec": "pores_density_0.1",
+      "status": "PASS",
+      "details": "Type: pores, Density: 0.1"
+    },
+    {
+      "test": "Adjacency graph keys are strings",
+      "spec": "fixed_defects_density_0.005",
+      "status": "PASS",
+      "details": "Found 4406 adjacency entries"
+    },
+    {
+      "test": "Removed tiles have empty neighbor lists",
+      "spec": "fixed_defects_density_0.005",
+      "status": "PASS",
+      "details": "Checked 0 removed tiles"
+    },
+    {
+      "test": "Fixed defects marked as immobile",
+      "spec": "fixed_defects_density_0.005",
+      "status": "PASS",
+      "details": "Found 22 fixed defects"
+    },
+    {
+      "test": "No contradictory tile states (removed + immobile)",
+      "spec": "fixed_defects_density_0.005",
+      "status": "PASS",
+      "details": "Found 0 contradictory tiles"
+    },
+    {
+      "test": "Obstacle metadata complete",
+      "spec": "fixed_defects_density_0.005",
+      "status": "PASS",
+      "details": "Type: fixed_defects, Density: 0.005"
+    },
+    {
+      "test": "Adjacency graph keys are strings",
+      "spec": "fixed_defects_density_0.01",
+      "status": "PASS",
+      "details": "Found 4406 adjacency entries"
+    },
+    {
+      "test": "Removed tiles have empty neighbor lists",
+      "spec": "fixed_defects_density_0.01",
+      "status": "PASS",
+      "details": "Checked 0 removed tiles"
+    },
+    {
+      "test": "Fixed defects marked as immobile",
+      "spec": "fixed_defects_density_0.01",
+      "status": "PASS",
+      "details": "Found 44 fixed defects"
+    },
+    {
+      "test": "No contradictory tile states (removed + immobile)",
+      "spec": "fixed_defects_density_0.01",
+      "status": "PASS",
+      "details": "Found 0 contradictory tiles"
+    },
+    {
+      "test": "Obstacle metadata complete",
+      "spec": "fixed_defects_density_0.01",
+      "status": "PASS",
+      "details": "Type: fixed_defects, Density: 0.01"
+    },
+    {
+      "test": "Adjacency graph keys are strings",
+      "spec": "fixed_defects_density_0.02",
+      "status": "PASS",
+      "details": "Found 4406 adjacency entries"
+    },
+    {
+      "test": "Removed tiles have empty neighbor lists",
+      "spec": "fixed_defects_density_0.02",
+      "status": "PASS",
+      "details": "Checked 0 removed tiles"
+    },
+    {
+      "test": "Fixed defects marked as immobile",
+      "spec": "fixed_defects_density_0.02",
+      "status": "PASS",
+      "details": "Found 88 fixed defects"
+    },
+    {
+      "test": "No contradictory tile states (removed + immobile)",
+      "spec": "fixed_defects_density_0.02",
+      "status": "PASS",
+      "details": "Found 0 contradictory tiles"
+    },
+    {
+      "test": "Obstacle metadata complete",
+      "spec": "fixed_defects_density_0.02",
+      "status": "PASS",
+      "details": "Type: fixed_defects, Density: 0.02"
+    },
+    {
+      "test": "Adjacency graph keys are strings",
+      "spec": "fixed_defects_density_0.03",
+      "status": "PASS",
+      "details": "Found 4406 adjacency entries"
+    },
+    {
+      "test": "Removed tiles have empty neighbor lists",
+      "spec": "fixed_defects_density_0.03",
+      "status": "PASS",
+      "details": "Checked 0 removed tiles"
+    },
+    {
+      "test": "Fixed defects marked as immobile",
+      "spec": "fixed_defects_density_0.03",
+      "status": "PASS",
+      "details": "Found 132 fixed defects"
+    },
+    {
+      "test": "No contradictory tile states (removed + immobile)",
+      "spec": "fixed_defects_density_0.03",
+      "status": "PASS",
+      "details": "Found 0 contradictory tiles"
+    },
+    {
+      "test": "Obstacle metadata complete",
+      "spec": "fixed_defects_density_0.03",
+      "status": "PASS",
+      "details": "Type: fixed_defects, Density: 0.03"
+    },
+    {
+      "test": "Adjacency graph keys are strings",
+      "spec": "fixed_defects_density_0.05",
+      "status": "PASS",
+      "details": "Found 4406 adjacency entries"
+    },
+    {
+      "test": "Removed tiles have empty neighbor lists",
+      "spec": "fixed_defects_density_0.05",
+      "status": "PASS",
+      "details": "Checked 0 removed tiles"
+    },
+    {
+      "test": "Fixed defects marked as immobile",
+      "spec": "fixed_defects_density_0.05",
+      "status": "PASS",
+      "details": "Found 220 fixed defects"
+    },
+    {
+      "test": "No contradictory tile states (removed + immobile)",
+      "spec": "fixed_defects_density_0.05",
+      "status": "PASS",
+      "details": "Found 0 contradictory tiles"
+    },
+    {
+      "test": "Obstacle metadata complete",
+      "spec": "fixed_defects_density_0.05",
+      "status": "PASS",
+      "details": "Type: fixed_defects, Density: 0.05"
+    },
+    {
+      "test": "Adjacency graph keys are strings",
+      "spec": "fixed_defects_density_0.1",
+      "status": "PASS",
+      "details": "Found 4406 adjacency entries"
+    },
+    {
+      "test": "Removed tiles have empty neighbor lists",
+      "spec": "fixed_defects_density_0.1",
+      "status": "PASS",
+      "details": "Checked 0 removed tiles"
+    },
+    {
+      "test": "Fixed defects marked as immobile",
+      "spec": "fixed_defects_density_0.1",
+      "status": "PASS",
+      "details": "Found 441 fixed defects"
+    },
+    {
+      "test": "No contradictory tile states (removed + immobile)",
+      "spec": "fixed_defects_density_0.1",
+      "status": "PASS",
+      "details": "Found 0 contradictory tiles"
+    },
+    {
+      "test": "Obstacle metadata complete",
+      "spec": "fixed_defects_density_0.1",
+      "status": "PASS",
+      "details": "Type: fixed_defects, Density: 0.1"
+    }
+  ]
+}
