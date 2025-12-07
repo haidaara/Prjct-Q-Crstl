@@ -1,0 +1,49 @@
+[project]
+name = "quasi-phason-phase2"
+version = "1.0.0"
+description = "Obstacle creation and phason healing studies"
+
+[tiling]
+method = "de_bruijn_pentagrid"
+window_origin = [0.0, 0.0]
+window_size = [60.0, 60.0]
+offsets = [0.0625, 0.1875, 0.34375, 0.15625, 0.25]
+seed = 42
+
+[obstacles]
+# Types to study
+types = ["pores", "fixed_defects"]
+
+# Placement strategy  
+placement = "multiple_scalable"
+
+# Density sweep for systematic studies (now area-based for pores)
+density_sweep = [0.01, 0.05, 0.1, 0.2]
+
+# Pore parameters - SMALLER, MORE REALISTIC RADII
+min_radius = 1.5
+max_radius = 4.0
+
+# Fixed defect parameters
+defect_cluster_size = 1
+
+
+[visualization]
+show_tile_ids = false
+show_plots = false  # Set to true if you want interactive plots
+tile_colors = { THICK = "#e74c3c", THIN = "#3498db" }
+obstacle_colors = { pore = "#2c3e50", fixed_defect = "#f39c12" }
+save_plots = true
+plot_dpi = 300
+figsize = [12, 12]
+
+[exports]
+format = "json"
+include_adjacency = true
+save_lattice_coords = true
+tiling_json = "data/raw/penrose_tiling.json"
+output_dir = "data/obstacles"
+
+[research]
+phase = 2
+focus = "obstacle_creation_and_validation"
