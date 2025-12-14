@@ -1,0 +1,66 @@
+{
+  "initial_consistency": {
+    "tracked": 307.8549999921163,
+    "manual_sum": 307.85499999209543,
+    "difference": 2.086153472191654e-11,
+    "ok": true
+  },
+  "post_flip_consistency": [
+    {
+      "cluster": [
+        2703,
+        2704,
+        3865
+      ],
+      "energy_before_stored": 3.6286666666666676,
+      "energy_before_recomputed": 3.6286666666666676,
+      "energy_after_stored": 7.748666704466951,
+      "energy_after_recomputed": 7.7486667044669515,
+      "before_diff": 0.0,
+      "after_diff": 8.881784197001252e-16,
+      "delta_stored": 4.120000037800283,
+      "delta_recomputed": 4.120000037800284,
+      "delta_diff": 8.881784197001252e-16
+    },
+    {
+      "cluster": [
+        2650,
+        2651,
+        3860
+      ],
+      "energy_before_stored": 2.824666666666667,
+      "energy_before_recomputed": 2.824666666666665,
+      "energy_after_stored": 7.755333356281295,
+      "energy_after_recomputed": 7.755333356281294,
+      "before_diff": 1.7763568394002505e-15,
+      "after_diff": 1.7763568394002505e-15,
+      "delta_stored": 4.930666689614629,
+      "delta_recomputed": 4.930666689614629,
+      "delta_diff": 0.0
+    },
+    {
+      "cluster": [
+        7,
+        8,
+        2596
+      ],
+      "energy_before_stored": 2.741333333333333,
+      "energy_before_recomputed": 2.7413333333333325,
+      "energy_after_stored": 0.2500002772605951,
+      "energy_after_recomputed": 0.25000027726059515,
+      "before_diff": 4.440892098500626e-16,
+      "after_diff": 5.551115123125783e-17,
+      "delta_stored": -2.491333056072738,
+      "delta_recomputed": -2.4913330560727376,
+      "delta_diff": 4.440892098500626e-16
+    }
+  ],
+  "mc_tracking_consistency": {
+    "mc_tracked": 307.8549999921163,
+    "recomputed": 307.8549999921163,
+    "difference": 0.0,
+    "ok": true
+  },
+  "errors": [],
+  "overall_status": "PASS"
+}

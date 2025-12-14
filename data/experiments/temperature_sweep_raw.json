@@ -1,0 +1,86 @@
+{
+  "0.1": {
+    "acceptance_rate": 0.096,
+    "initial_energy": 307.8549999921163,
+    "final_energy": 295.4360015553491,
+    "energy_change": -12.418998436767197,
+    "plateau_mean": 297.74788977364074,
+    "plateau_std": 1.4387389360028244,
+    "delta_mean": -0.2587291340993226,
+    "delta_std": 0.24401792275426032,
+    "positive_delta_ratio": 0.020833333333333332,
+    "num_clusters": 2182
+  },
+  "0.3": {
+    "acceptance_rate": 0.082,
+    "initial_energy": 307.8549999921163,
+    "final_energy": 289.6886688675609,
+    "energy_change": -18.16633112455537,
+    "plateau_mean": 295.35383649883875,
+    "plateau_std": 3.8213519391886774,
+    "delta_mean": -0.443081246940377,
+    "delta_std": 0.5874662546668595,
+    "positive_delta_ratio": 0.024390243902439025,
+    "num_clusters": 2185
+  },
+  "0.6": {
+    "acceptance_rate": 0.072,
+    "initial_energy": 307.8549999921163,
+    "final_energy": 303.5103350940613,
+    "energy_change": -4.344664898054987,
+    "plateau_mean": 304.5542363015187,
+    "plateau_std": 0.7482257235026666,
+    "delta_mean": -0.12068513605708353,
+    "delta_std": 0.8327945342116052,
+    "positive_delta_ratio": 0.05555555555555555,
+    "num_clusters": 2195
+  },
+  "1.0": {
+    "acceptance_rate": 0.122,
+    "initial_energy": 307.8549999921163,
+    "final_energy": 323.56766981377945,
+    "energy_change": 15.712669821663155,
+    "plateau_mean": 321.7241110294899,
+    "plateau_std": 3.5918645709865125,
+    "delta_mean": 0.2575847511748063,
+    "delta_std": 1.4612840411209398,
+    "positive_delta_ratio": 0.3770491803278688,
+    "num_clusters": 2161
+  },
+  "1.5": {
+    "acceptance_rate": 0.182,
+    "initial_energy": 307.8549999921163,
+    "final_energy": 388.54667278229886,
+    "energy_change": 80.69167279018257,
+    "plateau_mean": 370.9200315378408,
+    "plateau_std": 11.602179716838362,
+    "delta_mean": 0.8867216790129949,
+    "delta_std": 1.8491711298206168,
+    "positive_delta_ratio": 0.45054945054945056,
+    "num_clusters": 2128
+  },
+  "2.0": {
+    "acceptance_rate": 0.2,
+    "initial_energy": 307.8549999921163,
+    "final_energy": 412.20100588668294,
+    "energy_change": 104.34600589456664,
+    "plateau_mean": 390.4131882344954,
+    "plateau_std": 11.2621804935124,
+    "delta_mean": 1.043460058945666,
+    "delta_std": 2.052409033527861,
+    "positive_delta_ratio": 0.5,
+    "num_clusters": 2132
+  },
+  "3.0": {
+    "acceptance_rate": 0.332,
+    "initial_energy": 307.8549999921163,
+    "final_energy": 628.9950088348045,
+    "energy_change": 321.1400088426882,
+    "plateau_mean": 544.9877177472285,
+    "plateau_std": 52.3634433724999,
+    "delta_mean": 1.9345783665222183,
+    "delta_std": 2.808904218537165,
+    "positive_delta_ratio": 0.6204819277108434,
+    "num_clusters": 2019
+  }
+}

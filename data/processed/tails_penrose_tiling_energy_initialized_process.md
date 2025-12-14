@@ -1,5 +1,163 @@
-    
   
+    {
+      "id": 4402,
+      "type": "THICK",
+      "vertices": [
+        [
+          5.045085,
+          57.716689
+        ],
+        [
+          4.736068,
+          56.765632
+        ],
+        [
+          3.927051,
+          57.353417
+        ],
+        [
+          4.236068,
+          58.304474
+        ]
+      ],
+      "center": [
+        4.486067977499782,
+        57.53505289688219
+      ],
+      "lattice_coords": [
+        1,
+        -22,
+        -16,
+        12,
+        22
+      ],
+      "strips": [
+        {
+          "family": 3,
+          "multiple": 12
+        },
+        {
+          "family": 4,
+          "multiple": 22
+        }
+      ],
+      "neighbors": [
+        200,
+        201,
+        3496,
+        3495
+      ],
+      "vertex_class": "LOW_ENERGY",
+      "local_energy": 0.04999999999999975,
+      "growth_status": "ungrown",
+      "flippable": true
+    },
+    {
+      "id": 4403,
+      "type": "THICK",
+      "vertices": [
+        [
+          3.236068,
+          55.22679
+        ],
+        [
+          2.927051,
+          54.275734
+        ],
+        [
+          2.118034,
+          54.863519
+        ],
+        [
+          2.427051,
+          55.814575
+        ]
+      ],
+      "center": [
+        2.6770509831248357,
+        55.045154611999415
+      ],
+      "lattice_coords": [
+        0,
+        -21,
+        -15,
+        12,
+        21
+      ],
+      "strips": [
+        {
+          "family": 3,
+          "multiple": 12
+        },
+        {
+          "family": 4,
+          "multiple": 21
+        }
+      ],
+      "neighbors": [
+        123,
+        124,
+        3541,
+        3542
+      ],
+      "vertex_class": "LOW_ENERGY",
+      "local_energy": 0.05,
+      "growth_status": "ungrown",
+      "flippable": true
+    },
+    {
+      "id": 4404,
+      "type": "THICK",
+      "vertices": [
+        [
+          2.118034,
+          53.687948
+        ],
+        [
+          1.809017,
+          52.736892
+        ],
+        [
+          1.0,
+          53.324677
+        ],
+        [
+          1.309017,
+          54.275734
+        ]
+      ],
+      "center": [
+        1.55901699437494,
+        53.506312843411784
+      ],
+      "lattice_coords": [
+        0,
+        -21,
+        -14,
+        12,
+        20
+      ],
+      "strips": [
+        {
+          "family": 3,
+          "multiple": 12
+        },
+        {
+          "family": 4,
+          "multiple": 20
+        }
+      ],
+      "neighbors": [
+        3584,
+        3585,
+        1779,
+        3542
+      ],
+      "vertex_class": "LOW_ENERGY",
+      "local_energy": 0.050000000000000114,
+      "growth_status": "ungrown",
+      "flippable": true
+    },
     {
       "id": 4405,
       "type": "THICK",
@@ -49,12 +207,13 @@
         1759
       ],
       "vertex_class": "LOW_ENERGY",
-      "local_energy": 1.3026616822268502e-15,
+      "local_energy": 8.68441121484567e-16,
       "growth_status": "ungrown",
       "flippable": true
     }
-
   ],
+
+  
   "adjacency_graph": {
     "1": [
       0,
@@ -248,7 +407,4 @@
       42,
       1859
     ],
-    "43": [
-      42,
-      44,
-      1825
+  

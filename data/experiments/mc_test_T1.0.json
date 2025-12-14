@@ -1,0 +1,10 @@
+{
+  "temperature": 1.0,
+  "steps": 200,
+  "acceptance_rate": 0.095,
+  "initial_energy": 307.8549999921163,
+  "final_energy": 310.59633395873254,
+  "energy_change": 2.741333966616253,
+  "regime": "\u2744\ufe0f Too cold (mostly downhill)",
+  "recommendation": "Increase temperature to ~1.0-2.0"
+}

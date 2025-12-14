@@ -1,0 +1,72 @@
+{
+  "0.1": {
+    "acceptance_rate": 0.082,
+    "energy_initial": 307.8549999921163,
+    "energy_final": 296.9886687518945,
+    "energy_plateau_mean": 300.1032000158431,
+    "energy_plateau_std": 2.1162911697655677,
+    "delta_mean": -0.26503246927370205,
+    "delta_std": 0.48669823471158496,
+    "positive_delta_ratio": 0.04878048780487805
+  },
+  "0.3": {
+    "acceptance_rate": 0.082,
+    "energy_initial": 307.8549999921163,
+    "energy_final": 294.66100228669467,
+    "energy_plateau_mean": 298.81983849752646,
+    "energy_plateau_std": 2.3504485843399556,
+    "delta_mean": -0.3218048220834553,
+    "delta_std": 0.5333233662766759,
+    "positive_delta_ratio": 0.04878048780487805
+  },
+  "0.6": {
+    "acceptance_rate": 0.112,
+    "energy_initial": 307.8549999921163,
+    "energy_final": 300.93700283513755,
+    "energy_plateau_mean": 302.103262211045,
+    "energy_plateau_std": 0.47731766535136977,
+    "delta_mean": -0.12353566351747354,
+    "delta_std": 0.4261039605394662,
+    "positive_delta_ratio": 0.17857142857142858
+  },
+  "1.0": {
+    "acceptance_rate": 0.126,
+    "energy_initial": 307.8549999921163,
+    "energy_final": 317.5180030749788,
+    "energy_plateau_mean": 312.7049158133042,
+    "energy_plateau_std": 3.268781185318588,
+    "delta_mean": 0.15338100131527624,
+    "delta_std": 1.164016526659807,
+    "positive_delta_ratio": 0.2222222222222222
+  },
+  "1.5": {
+    "acceptance_rate": 0.142,
+    "energy_initial": 307.8549999921163,
+    "energy_final": 367.68800348708606,
+    "energy_plateau_mean": 354.07222091696104,
+    "energy_plateau_std": 8.000089579202044,
+    "delta_mean": 0.8427183590840802,
+    "delta_std": 1.7874762629712035,
+    "positive_delta_ratio": 0.43661971830985913
+  },
+  "2.0": {
+    "acceptance_rate": 0.226,
+    "energy_initial": 307.8549999921163,
+    "energy_final": 464.5210055762087,
+    "energy_plateau_mean": 419.21444858295723,
+    "energy_plateau_std": 22.80525679887574,
+    "delta_mean": 1.3864248281778062,
+    "delta_std": 2.2413299454329043,
+    "positive_delta_ratio": 0.5309734513274337
+  },
+  "3.0": {
+    "acceptance_rate": 0.306,
+    "energy_initial": 307.8549999921163,
+    "energy_final": 615.7280054211353,
+    "energy_plateau_mean": 571.0051620274781,
+    "energy_plateau_std": 34.71100887159737,
+    "delta_mean": 2.012241865549148,
+    "delta_std": 2.8839537480467325,
+    "positive_delta_ratio": 0.6274509803921569
+  }
+}

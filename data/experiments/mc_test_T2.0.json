@@ -1,0 +1,10 @@
+{
+  "temperature": 2.0,
+  "steps": 200,
+  "acceptance_rate": 0.175,
+  "initial_energy": 307.8549999921163,
+  "final_energy": 374.06000173963224,
+  "energy_change": 66.20500174751595,
+  "regime": "\ud83e\uddca Good for healing",
+  "recommendation": "Perfect for error-and-repair experiments"
+}
