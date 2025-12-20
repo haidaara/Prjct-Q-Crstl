@@ -38,46 +38,140 @@
 │   ├── test_phason_flips.py
 │   └── test_tilings.py
 ├── configs
+│   ├── all_config_file.zip
+│   ├── control_growth_only.toml
 │   ├── phase1_baseline.toml
+│   ├── phase2_growth_experiments.toml
 │   ├── phase2_obstacles.toml
 │   ├── phase2_phason_dynamics.toml
 │   └── phase3_healing_dynamics.toml
 ├── data
 │   ├── cache
+│   ├── control_experiments
+│   ├── control_tests
+│   │   └── control_growth_only_20251215_233501.json
+│   ├── data_extraction_command_head_tails.txt
+│   ├── diagnostics
+│   │   └── delta_E_distribution_proposed.png
 │   ├── energy
 │   │   ├── energy_model_parameters.json
 │   │   ├── energy_validation_report.json
 │   │   └── vertex_environment_statistics.json
+│   ├── experiments
+│   │   ├── energy_validation_report.json
+│   │   ├── experment_data_also.zip
+│   │   ├── final_state.json
+│   │   ├── growth_diagnostics.json
+│   │   ├── growth_initial.json
+│   │   ├── head_growth_initial.md
+│   │   ├── mc_diagnostics.json
+│   │   ├── mc_test_T1.0.json
+│   │   ├── mc_test_T1.5.json
+│   │   ├── mc_test_T2.0.json
+│   │   ├── mc_test_T3.0.json
+│   │   ├── some_output.md
+│   │   ├── tail_growth_initial.md
+│   │   ├── temperature_sweep_raw.json
+│   │   ├── temperature_sweep_results.json
+│   │   └── temperature_sweep_summary.json
+│   ├── growth_experiments
+│   │   ├── data_growth_experiment.zip
+│   │   ├── json_pores_0.0_20251214_193349.zip
+│   │   ├── plots
+│   │   │   ├── plot_pores_0.0_20251214_195846_analysis.zip
+│   │   │   ├── pores_0.0_20251214_193208_analysis.png
+│   │   │   ├── pores_0.0_20251214_193243_analysis.png
+│   │   │   ├── pores_0.0_20251214_193349_analysis.png
+│   │   │   ├── pores_0.0_20251214_194224_analysis.png
+│   │   │   ├── pores_0.0_20251214_194244_analysis.png
+│   │   │   └── pores_0.0_20251214_195846_analysis.png
+│   │   ├── pores_0.0_20251214_193208.json
+│   │   ├── pores_0.0_20251214_193243.json
+│   │   ├── pores_0.0_20251214_193349.json
+│   │   ├── pores_0.0_20251214_194224.json
+│   │   ├── pores_0.0_20251214_194244.json
+│   │   ├── pores_0.0_20251214_195846.json
+│   │   ├── temp_sweep_T0.8.json
+│   │   ├── temp_sweep_T1.0.json
+│   │   ├── temp_sweep_T1.2.json
+│   │   └── temp_sweep_T1.5.json
 │   ├── obstacles
 │   │   ├── archive
 │   │   │   ├── experiment_summary.json
 │   │   │   ├── fixed_defects
+│   │   │   │   ├── fixed_defects_density_0.005.json
+│   │   │   │   ├── fixed_defects_density_0.009.json
+│   │   │   │   ├── fixed_defects_density_0.01.json
+│   │   │   │   ├── fixed_defects_density_0.02.json
+│   │   │   │   ├── fixed_defects_density_0.03.json
+│   │   │   │   ├── fixed_defects_density_0.04.json
+│   │   │   │   ├── fixed_defects_density_0.05.json
+│   │   │   │   ├── fixed_defects_density_0.075.json
+│   │   │   │   ├── fixed_defects_density_0.09.json
+│   │   │   │   ├── fixed_defects_density_0.1.json
+│   │   │   │   └── fixed_defects_density_0.2.json
 │   │   │   ├── penrose_tiling.json
 │   │   │   ├── penrose_tiling.png
 │   │   │   ├── pores
+│   │   │   │   ├── pores_density_0.005.json
+│   │   │   │   ├── pores_density_0.009.json
+│   │   │   │   ├── pores_density_0.01.json
+│   │   │   │   ├── pores_density_0.02.json
+│   │   │   │   ├── pores_density_0.03.json
+│   │   │   │   ├── pores_density_0.04.json
+│   │   │   │   ├── pores_density_0.05.json
+│   │   │   │   ├── pores_density_0.075.json
+│   │   │   │   ├── pores_density_0.09.json
+│   │   │   │   ├── pores_density_0.1.json
+│   │   │   │   └── pores_density_0.2.json
 │   │   │   └── visualizations
+│   │   │       ├── fixed_defects_density_0.005.png
+│   │   │       ├── fixed_defects_density_0.01.png
+│   │   │       ├── fixed_defects_density_0.02.png
+│   │   │       ├── fixed_defects_density_0.03.png
+│   │   │       ├── fixed_defects_density_0.05.png
+│   │   │       ├── fixed_defects_density_0.1.png
+│   │   │       ├── pores_density_0.005.png
+│   │   │       ├── pores_density_0.01.png
+│   │   │       ├── pores_density_0.02.png
+│   │   │       ├── pores_density_0.03.png
+│   │   │       ├── pores_density_0.05.png
+│   │   │       └── pores_density_0.1.png
 │   │   ├── experiment_summary.json
 │   │   ├── fixed_defects
 │   │   │   ├── fixed_defects_density_0.005.json
-│   │   │   ├................
+│   │   │   ├── fixed_defects_density_0.01.json
+│   │   │   ├── fixed_defects_density_0.02.json
+│   │   │   ├── fixed_defects_density_0.03.json
+│   │   │   ├── fixed_defects_density_0.05.json
+│   │   │   └── fixed_defects_density_0.1.json
 │   │   ├── penrose_tiling.json
 │   │   ├── penrose_tiling.png
 │   │   ├── pores
 │   │   │   ├── pores_density_0.005.json
-│   │   │   ├── ....
+│   │   │   ├── pores_density_0.01.json
+│   │   │   ├── pores_density_0.02.json
+│   │   │   ├── pores_density_0.03.json
+│   │   │   ├── pores_density_0.05.json
+│   │   │   └── pores_density_0.1.json
 │   │   ├── verification_report.json
 │   │   └── visualizations
 │   │       ├── fixed_defects_density_0.005.png
-                    ..............
-│   │  
-│   │      
+│   │       ├── fixed_defects_density_0.01.png
+│   │       ├── fixed_defects_density_0.02.png
+│   │       ├── fixed_defects_density_0.03.png
+│   │       ├── fixed_defects_density_0.05.png
+│   │       ├── fixed_defects_density_0.1.png
+│   │       ├── pores_density_0.005.png
+│   │       ├── pores_density_0.01.png
+│   │       ├── pores_density_0.02.png
+│   │       ├── pores_density_0.03.png
+│   │       ├── pores_density_0.05.png
+│   │       └── pores_density_0.1.png
 │   ├── processed
-│   │   ├── head_adjacency_graph.md
 │   │   ├── head_tiles_process.md
-│   │   ├── head_tiles_processed.md
 │   │   ├── penrose_tiling_energy_initialized.json
-│   │   ├── tail_tiles_process.md
-│   │   └── tails_tiles_process.md
+│   │   └── tails_penrose_tiling_energy_initialized_process.md
 │   └── raw
 │       ├── New Text Document.txt
 │       ├── head.json
@@ -85,53 +179,52 @@
 │       ├── penrose_tiling.png
 │       ├── sub_results_of_penrose_tiling.json
 │       └── tail.json
+├── debug.md
 ├── environment.yml
+├── output__first debug.md
 ├── output_debug_validation.md
 ├── pyproject.toml
 ├── requirements.txt
 ├── scripts
 │   ├── __sequence_of_command_to_run.md
+│   ├── a.py
+│   ├── analyze_growth_results.py
+│   ├── analyze_temperature_results.py
+│   ├── check_vertex_class.py
+│   ├── debug_energy_distribution.py
+│   ├── debug_energy_model.py
 │   ├── debug_validation.py
+│   ├── diagnose_active_region_flips.py
+│   ├── diagnose_energy_landscape.py
+│   ├── diagnose_flip_physics.py
+│   ├── diagnose_mc_healing.py
+│   ├── diagnose_temperature_effect.py
+│   ├── output.md
+│   ├── quick_control.py
+│   ├── quick_label_check.py
+│   ├── run_growth_experiment.py
 │   ├── run_milestone1.py
 │   ├── run_milestone2_obstacle.py
 │   ├── run_week2.py
+│   ├── system_diagnostic.py
+│   ├── temperature_sweep_physics.py
+│   ├── test_correct_flip.py
+│   ├── test_energy_sensitivity.py
+│   ├── test_growth_baseline.py
+│   ├── test_manual_defects.py
+│   ├── test_mc_quick.py
+│   ├── test_mc_temperature.py
+│   ├── test_quick_growth.py
+│   ├── test_temperature_effect.py
+│   ├── test_temperature_summary.py
+│   ├── validate_energy_consistency.py
+│   ├── validate_robust_flip.py
 │   ├── validate_week1_physics.py
+│   ├── verify_label_persistence.py
 │   └── verify_obstacles.py
 ├── src
+│   ├── all_src_file.zip
 │   ├── analysis
-│   ├── archive
-│   │   ├── analysis
-│   │   ├── energy
-│   │   │   ├── __pycache__
-│   │   │   ├── combinatorial_classifier.py
-│   │   │   ├── energy_logger.py
-│   │   │   └── widom_inspired_energy.py
-│   │   ├── growth
-│   │   ├── monte_carlo
-│   │   ├── obstacle
-│   │   │   ├── __pycache__
-│   │   │   ├── fixed____current_obstalce_issue.md
-│   │   │   ├── obstacle_config.py
-│   │   │   ├── obstacle_creator.py
-│   │   │   └── obstacle_visualizer.py
-│   │   ├── tilings
-│   │   │   ├── __init__.py
-│   │   │   ├── __pycache__
-│   │   │   ├── penrose_p3.py
-│   │   │   └── validation.py
-│   │   ├── utils
-│   │   │   ├── __init__.py
-│   │   │   ├── __pycache__
-│   │   │   ├── archive_obstacles.py
-│   │   │   ├── config.py
-│   │   │   ├── io.py
-│   │   │   └── reproducibility.py
-│   │   └── viz
-│   │       ├── __init__.py
-│   │       ├── __pycache__
-│   │       ├── animations.py
-│   │       ├── dashboards.py
-│   │       └── plotters.py
 │   ├── energy
 │   │   ├── __pycache__
 │   │   │   ├── combinatorial_classifier.cpython-312.pyc
@@ -182,7 +275,7 @@
 │       ├── animations.py
 │       ├── dashboards.py
 │       └── plotters.py
-├── tree.md
-└── tree_src.md
+├── test_mc_basics_output.md
+└── tree.md
 
-55 directories, 147 files
+47 directories, 232 files

@@ -137,6 +137,12 @@ class CombinatorialVertexClassifier:
             angles.append(angle)
 
         return angles
+    
+    # In CombinatorialVertexClassifier class (around line 140)
+    def clear_cache(self):
+        """Clear any internal caches"""
+        # This class doesn't have caches yet, but add for future compatibility
+        pass
 
     def _check_geometric_constraints(self, environment: VertexEnvironment) -> Dict[str, bool]:
         violations = {
