@@ -179,5 +179,12 @@ class WidomInspiredEnergy:
         return tiling_data
 
     def clear_cache(self):
-        """Clear vertex class cache (useful for multiple runs)"""
-        self._vertex_class_cache.clear()
+        # clear whatever you actually have
+        if hasattr(self, "_vertex_class_cache"):
+            self._vertex_class_cache.clear()
+        if hasattr(self, "_local_energy_cache"):
+            self._local_energy_cache.clear()
+
+         # Force garbage collection for good measure
+        import gc
+        gc.collect()

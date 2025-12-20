@@ -60,8 +60,9 @@ class ConfigManager:
 
     @property
     def monte_carlo(self) -> Dict[str, Any]:
-        """Access Monte Carlo configuration section"""
-        return self._config.get("monte_carlo", {})
+            """Access Monte Carlo configuration section"""
+            # Fallback to [mc] for backward compatibility
+            return self._config.get("monte_carlo", self._config.get("mc", {}))
 
     @property
     def growth(self) -> Dict[str, Any]:
