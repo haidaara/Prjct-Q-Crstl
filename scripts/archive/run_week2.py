@@ -128,7 +128,7 @@ def test_week2():
         json.dump(tiling_data, f, indent=2)
     
     obstacles = {}
-    tiling_data, new_tiles = growth_engine.grow_step(tiling_data, obstacles)
+    tiling_data, new_tiles, _ = growth_engine.grow_step(tiling_data, obstacles)
     
     # Save growth diagnostics
     growth_diagnostics = growth_engine.get_diagnostics()

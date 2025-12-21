@@ -4,52 +4,65 @@
 
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+from pathlib import Path
+
+project_root = Path(__file__).resolve().parents[2]   # .../quasi-phason
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from src.utils.config import ConfigManager
 from src.obstacle.obstacle_creator import ObstacleCreator, ObstacleSpec, adjacency_intkeys_to_str
 from src.obstacle.obstacle_config import ObstacleConfig
 from src.obstacle.obstacle_visualizer import ObstacleVisualizer
 import json
-from pathlib import Path
+
 import time
+
 
 def main():
     start_time = time.time()
     
-    # Load configuration - FIXED PATH
-    config = ConfigManager("configs/phase2_obstacles.toml")
+    print("🚀 MILESTONE 2A: OBSTACLE CREATION PIPELINE")
+    print("=" * 60)
     
-    print("🚀 STARTING MILESTONE 2A: HIGH-PERFORMANCE OBSTACLE CREATION")
-    print(f"📁 Config: {config.config_path}")
+    # Load configuration
+    config = ConfigManager("configs/phase2_experiments.toml")
+    print(f"📁 Using config: {config.config_path}")
     
-    obstacle_dir = Path("data/obstacles")
-    if obstacle_dir.exists() and any(obstacle_dir.iterdir()):
-        print("⚠️  WARNING: data/obstacles already has data!")
-        print("   Run: python scripts/archive_obstacles.py to archive existing data")
-        response = input("   Continue anyway? (y/n): ")
+    # Setup output directory structure
+    output_dir = setup_output_directory()
+    
+    # Check if output directory already has data
+    existing_files = list(output_dir.glob("**/*.json"))
+    if existing_files:
+        print(f"\n⚠️  WARNING: {output_dir} already contains {len(existing_files)} JSON files")
+        print("   This will overwrite existing obstacle configurations")
+        print("   Run: python src/utils/archive_obstacles.py to archive existing data")
+        
+        response = input("\nContinue anyway? (y/n): ")
         if response.lower() != 'y':
-            print("❌ Aborted - archive existing data first")
+            print("❌ Aborted")
             return
-
-
-    # Load validated Milestone1 data
+    
+    # Load base tiling
     base_tiling = load_base_tiling()
-    if not base_tiling:
+    if base_tiling is None:
         return
     
-    # Initialize high-performance obstacle system
+    # Initialize components
     obstacle_creator = ObstacleCreator(config)
     obstacle_config = ObstacleConfig(config)
     visualizer = ObstacleVisualizer(config)
     
-    # Generate scalable obstacle configurations
+    print("\n🔧 Generating obstacle specifications...")
     obstacle_specs = obstacle_config.generate_scalable_obstacles(base_tiling)
+    print(f"✅ Generated {len(obstacle_specs)} obstacle specs")
     
-    # Create and save all obstacle configurations
-    output_dir = setup_output_directory()
-    results = create_obstacle_configurations(obstacle_creator, visualizer, 
-                                           base_tiling, obstacle_specs, output_dir)
+    # Create obstacles
+    results = create_obstacle_configurations(
+        obstacle_creator, visualizer,
+        base_tiling, obstacle_specs, output_dir
+    )
     
     # Save comprehensive experiment summary
     save_experiment_summary(results, output_dir, start_time)
@@ -57,21 +70,38 @@ def main():
     print(f"\n✅ MILESTONE 2A COMPLETED IN {time.time() - start_time:.2f}s")
     print(f"   • Generated {len(results)} obstacle configurations")
     print(f"   • Output: {output_dir}")
-    print(f"   • Run verification: python scripts/verify_obstacles.py")
+    print(f"   • Run verification: python validation/validate_obstacles.py")
+
 
 def load_base_tiling():
-    """Load and validate Milestone1 tiling data - FIXED PATH"""
-    milestone1_file = Path("data/raw/penrose_tiling.json")
-    
-    if not milestone1_file.exists():
-        print("❌ Error: Run Milestone1 first - missing penrose_tiling.json")
-        return None
-        
-    with open(milestone1_file, 'r') as f:
-        tiling_data = json.load(f)
-    
-    print(f"📐 Loaded base tiling: {tiling_data['metadata']['tile_count']} tiles")
-    return tiling_data
+    """
+    Load canonical tiling for obstacle generation.
+
+    Priority:
+      1) data/processed/penrose_tiling_energy_initialized.json (if it exists)
+      2) data/raw/penrose_tiling.json
+    """
+    candidates = [
+        Path("data/processed/penrose_tiling_energy_initialized.json"),
+        Path("data/raw/penrose_tiling.json"),
+    ]
+
+    for path in candidates:
+        if path.exists():
+            with open(path, 'r') as f:
+                tiling_data = json.load(f)
+
+            print(f"📐 Loaded base tiling: {tiling_data['metadata']['tile_count']} tiles")
+            print(f"   Source: {path}")
+            return tiling_data
+
+    print("❌ Error: Missing base tiling.")
+    print("   Expected one of:")
+    for path in candidates:
+        print(f"   - {path}")
+    print("   Run: python experiments/01_generate_tiling.py")
+    return None
+
 
 def setup_output_directory():
     """Create organized output directory structure - FIXED PATH"""
@@ -85,19 +115,22 @@ def setup_output_directory():
     
     return output_dir
 
-def create_obstacle_configurations(obstacle_creator, visualizer, base_tiling, 
-                                 obstacle_specs, output_dir):
-    """Create all obstacle configurations with visualization"""
+
+def create_obstacle_configurations(obstacle_creator, visualizer, base_tiling, obstacle_specs, output_dir):
+    """Create all obstacle configurations efficiently"""
     results = []
     
     for spec_name, obstacle_spec in obstacle_specs.items():
-        print(f"\n🔧 Creating {spec_name}...")
+        print(f"\n🔧 Creating obstacles: {spec_name}")
         
-        # Create obstacles with high-performance method
+        # Create obstacles
         obstacle_tiling = obstacle_creator.create_obstacles(base_tiling, obstacle_spec)
         
-        # Convert adjacency keys to strings for JSON export
-        obstacle_tiling["adjacency_graph"] = adjacency_intkeys_to_str(obstacle_tiling["adjacency_graph"])
+        # Ensure adjacency keys are strings (JSON safe)
+        if "adjacency_graph" in obstacle_tiling:
+            obstacle_tiling["adjacency_graph"] = adjacency_intkeys_to_str(
+                obstacle_tiling["adjacency_graph"]
+            )
         
         # Save obstacle configuration
         file_path = save_obstacle_config(obstacle_tiling, spec_name, output_dir)
@@ -113,29 +146,29 @@ def create_obstacle_configurations(obstacle_creator, visualizer, base_tiling,
             "metadata": obstacle_tiling["obstacle_metadata"]
         })
         
-        print(f"💾 Saved: {file_path}")
+        print(f"💾 Saved: {file_path.name}")
     
     return results
+
 
 def save_obstacle_config(obstacle_tiling, spec_name, output_dir):
     """Save obstacle configuration to appropriate subdirectory"""
     if "pores" in spec_name:
-        subdir = "pores"
+        save_dir = output_dir / "pores"
     else:
-        subdir = "fixed_defects"
-        
-    file_path = output_dir / subdir / f"{spec_name}.json"
+        save_dir = output_dir / "fixed_defects"
+    
+    file_path = save_dir / f"{spec_name}.json"
     with open(file_path, 'w') as f:
         json.dump(obstacle_tiling, f, indent=2)
-        
+    
     return file_path
+
 
 def save_experiment_summary(results, output_dir, start_time):
     """Save comprehensive experiment summary"""
-    now = time.time()
     summary = {
-        "timestamp": now,
-        "duration_seconds": now - start_time,
+        "duration_seconds": time.time() - start_time,
         "total_configurations": len(results),
         "configurations": results
     }
@@ -144,7 +177,8 @@ def save_experiment_summary(results, output_dir, start_time):
     with open(summary_file, 'w') as f:
         json.dump(summary, f, indent=2)
     
-    print(f"📊 Experiment summary: {summary_file}")
+    print(f"\n📊 Summary saved: {summary_file.name}")
+
 
 if __name__ == "__main__":
     main()

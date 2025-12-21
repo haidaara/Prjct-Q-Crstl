@@ -1,0 +1,152 @@
+# configs/phase2_experiments.toml
+# =====================================================================
+# 🔬 MONOLITHIC PHYSICS CONFIG (01→05)
+# One file = one source of truth for reproducible runs.
+# =====================================================================
+
+[project]
+name = "quasi-phason"                  # Project label (pure metadata)
+phase = 2                              # Phase label (metadata)
+output_dir = "data/experiments/growth" # Default experiment output dir (04 uses it)
+random_seed = 42                       # Global seed (used if script reads it; safe metadata)
+
+# ---------------------------------------------------------------------
+# 1) TILING GEOMETRY (01 uses these to generate raw Penrose tiling)
+# ---------------------------------------------------------------------
+[tiling]
+method = "de_bruijn_pentagrid"         # Geometry construction method (keep as implemented)
+window_origin = [0.0, 0.0]             # Lower-left of sampling window [x0, y0]
+window_size = [60.0, 60.0]             # Window size [W, H] in tiling units
+offsets = [0.0625, 0.1875, 0.34375, 0.15625, 0.25]  # 5 offsets controlling Penrose phase
+seed = 42                               # Seed for any random choices in generation
+
+# ---------------------------------------------------------------------
+# 2) EXPORTS (01/02: where files get written)
+# ---------------------------------------------------------------------
+[exports]
+format = "json"                        # Output format for generated assets
+include_adjacency = true               # Save adjacency/topology if generator supports it
+save_lattice_coords = true             # Save lattice/cut-projection coords if available
+tiling_json = "data/raw/penrose_tiling.json"  # Raw geometry output path (01 writes here)
+output_dir = "data/obstacles"          # Base output dir for obstacle variants (02 writes here)
+
+# ---------------------------------------------------------------------
+# 3) VISUALIZATION DEFAULTS (01 tiling plots + 02 obstacle plots)
+# ---------------------------------------------------------------------
+[visualization]
+show_tile_ids = false                  # Overlay tile IDs (debug; makes plots busy)
+show_plots = false                     # Show interactive window (local only)
+save_plots = true                      # Save plots to disk (recommended)
+plot_dpi = 300                         # DPI for saved figures
+figsize = [12, 12]                     # Figure size in inches [width, height]
+
+[visualization.tile_colors]
+THICK = "#e74c3c"                      # Color for thick tiles
+THIN  = "#3498db"                      # Color for thin tiles
+
+[visualization.obstacle_colors]
+pore = "#2c3e50"                       # Color for pore obstacles (removed/immobile tiles)
+fixed_defect = "#f39c13"               # Color for fixed defects
+
+# ---------------------------------------------------------------------
+# 4) PHYSICS / ENERGY MODEL (used by 03/04; must match src logic)
+# ---------------------------------------------------------------------
+[energy]
+high_energy_penalty = 2.0              # Penalty for high-energy/defect vertex class
+medium_energy_penalty = 1.0            # Penalty for strained/medium-energy class
+low_energy_reference = 0.0             # Baseline for ideal/low-energy class
+neighbor_interaction_strength = 0.1    # Coupling strength to neighbor interactions
+geometric_strain_penalty = 0.2         # Extra penalty for geometric strain
+
+# ---------------------------------------------------------------------
+# 5) MONTE CARLO DYNAMICS (03 uses steps/R; 04 uses temperature/base_steps)
+# ---------------------------------------------------------------------
+[monte_carlo]
+temperature = 0.8                      # MC temperature T (05 overrides per sweep)
+base_steps = 100                       # Base steps (used by some runners/engines)
+burn_in_steps = 50                     # Burn-in equilibration steps (if used)
+
+## 200 for sample # 10000 for real analysis
+steps =  10                            # Total MC steps for healing sweeps (03 expects this)
+neighborhood_radius = 4                # Local neighborhood radius (R) for MC moves
+verify_energy = false                  # Expensive checks; True only for debugging
+
+# Legacy alias (keep for backward compat if any script still reads [mc])
+[mc]
+temperature = 0.8                      # Alias of monte_carlo.temperature
+steps = 200                            # Alias of monte_carlo.steps
+neighborhood_radius = 4                # Alias of monte_carlo.neighborhood_radius
+verify_energy = false                  # Alias of monte_carlo.verify_energy
+
+# ---------------------------------------------------------------------
+# 6) OBSTACLES (02 generator + 04 growth selection)
+# ---------------------------------------------------------------------
+[obstacles]
+types = ["pores", "fixed_defects"]     # Obstacle families generator can produce
+placement = "multiple_scalable"        # Placement algorithm name (must match code)
+
+density_sweep = [0.005, 0.01, 0.02, 0.03, 0.05, 0.1]  # Densities to generate in 02
+min_radius = 2.0                       # Minimum obstacle radius
+max_radius = 8.0                       # Maximum obstacle radius
+defect_cluster_size = 1                # Fixed_defect cluster size (1 = single-tile)
+min_separation = 2.0                   # Min spacing between obstacles to avoid overlap
+output_dir = "data/obstacles"          # Where obstacle variants are saved (02)
+
+active_type = "pores"                  # Which obstacle type 04 uses when density > 0
+test_densities = [0.0]                 # Densities to test in 04 (first element used)
+placement_method = "multiple_scalable" # Tag for metadata/naming consistency
+
+# ---------------------------------------------------------------------
+# 7) GROWTH EXPERIMENT (04 reads this)
+# ---------------------------------------------------------------------
+[growth]
+tiling_path = "data/processed/penrose_tiling_energy_initialized.json"  # Canonical input
+seed_radius = 5.0                      # Seed radius for initial growth region
+growth_steps = 5                       # Number of growth iterations
+mc_steps_per_growth = 200          # MC steps after each growth step
+healing_radius = 3.0                   # Optional: local healing radius (if used by engine)
+
+# ---------------------------------------------------------------------
+# 8) HEALING EXPERIMENT (03 reads this)
+# ---------------------------------------------------------------------
+[healing]
+scenario = "base"                      # Scenario label used in filenames/meta
+tiling_path = "data/processed/penrose_tiling_energy_initialized.json"  # Canonical input
+output_dir = "data/experiments/healing" # Output dir for healing runs
+seed_radius = 10.0                     # Seed region radius for defect insertion
+num_defects = 15                       # Number of defects to inject
+defect_threshold = 1.5                 # Threshold used by defect finder/classifier
+
+# ---------------------------------------------------------------------
+# 9) TEMPERATURE SWEEP (05 reads this; calls 04 repeatedly)
+# ---------------------------------------------------------------------
+[temp_sweep]
+output_dir = "data/experiments/temp_sweep"  # Sweep output dir (summary + runs)
+temperatures = [0.8, 1.0, 1.2, 1.5]          # Temperature list to loop over
+
+# ---------------------------------------------------------------------
+# 10) METRICS / SAVING POLICY (04 reads save_full_state)
+# ---------------------------------------------------------------------
+[metrics]
+track_defects = true                   # Track defect count/density metrics
+track_energy = true                    # Track energy summaries
+save_full_state = true                 # Save final tiling state file (large; set false to keep small)
+save_visualization = true              # Enable plotting outputs if script supports it
+plot_format = "png"                    # Plot format (png/pdf)
+plot_dpi = 200                         # DPI used for run-level plots
+
+# ---------------------------------------------------------------------
+# 11) DEBUG / PRINTING (03/04/05 read this)
+# ---------------------------------------------------------------------
+[debug]
+verbosity = 1                          # 1=progress; 2=step-level debug traces
+progress_every = 1                     # Print progress summary every N outer steps
+trace_every = 50                       # Verbosity=2: print MC trace every N MC steps
+
+# ---------------------------------------------------------------------
+# 12) VALIDATION (used by validators / obstacle checks if enabled)
+# ---------------------------------------------------------------------
+[validation]
+check_overlaps = true                  # Validate obstacles do not overlap (if supported)
+verify_counts = true                   # Validate expected counts/densities (if supported)
+max_density = 0.5                      # Safety cap for obstacle density (avoid nonsense)

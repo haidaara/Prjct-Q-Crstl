@@ -1,410 +1,297 @@
-# scripts/test_manual_defects.py
 #!/usr/bin/env python3
 """
-Test MC healing with manual defects (REAL geometric defects)
-FIXED: Creates real defects by applying uphill flips, tracks energy properly
+Experiment 03: Run Healing Test
+Refactored and enhanced healing experiment script.
+
 """
 
-import json
-import random
-import copy
 import sys
-import os
+import json
+import time
+import copy
+from pathlib import Path
+
 import numpy as np
 
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+# Add project root
+project_root = Path(__file__).resolve().parents[2]
+sys.path.append(str(project_root))
+
+from src.utils.config import ConfigManager
+from src.utils.script_utils import load_tiling, setup_simulation_components, initialize_seed_region
+from src.utils.energy_utils import wipe_all_energy_fields, clear_all_caches
+from src.simulation.mc_engine import MonteCarloEngine
 
 
-from src.utils.energy_utils import compute_total_energy_fresh, wipe_all_energy_fields, clear_all_caches
+def _make_logger(verbosity: int):
+    def log(msg: str, level: int = 1):
+        if verbosity >= level:
+            print(msg, flush=True)
+    return log
 
 
-def initialize_seed_region(tiling_data, seed_center=None, seed_radius=10.0):
-    """Initialize a seed region (same as in growth_engine)"""
-    if seed_center is None:
-        window_size = tiling_data.get('window_size', [60.0, 60.0])
-        seed_center = [window_size[0]/2, window_size[1]/2]
-    
-    for tile in tiling_data['tiles']:
-        if tile.get('removed', False):
-            continue
-        dx = tile['center'][0] - seed_center[0]
-        dy = tile['center'][1] - seed_center[1]
-        if (dx*dx + dy*dy) <= seed_radius*seed_radius:
-            tile['growth_status'] = 'seed'
-            tile['flippable'] = True
-        else:
-            tile['growth_status'] = 'ungrown'
-            tile['flippable'] = False
+def _next_run_id(out_dir: Path, prefix: str) -> int:
+    existing = sorted(out_dir.glob(f"{prefix}_run_*.json"))
+    if not existing:
+        return 1
+    nums = []
+    for p in existing:
+        try:
+            nums.append(int(p.stem.split("_run_")[-1]))
+        except Exception:
+            pass
+    return (max(nums) + 1) if nums else 1
 
-def create_real_geometric_defects(tiling_data, energy_model, flip_engine, num_defects=10):
-    """
-    Create REAL defects by applying flips that increase energy
-    Returns: (active_tile_ids, defect_hexagons_applied)
-    """
-    print(f"  Creating {num_defects} REAL geometric defects...")
-    
-    # Define active region
-    active_tile_ids = set()
-    for tile in tiling_data['tiles']:
-        if tile.get('removed', False):
-            continue
-        if tile.get('growth_status') == 'seed':
-            active_tile_ids.add(tile['id'])
-    
-    # Add 1-ring neighbors
-    adjacency = tiling_data['adjacency_graph']
-    additional_active = set()
-    for tile_id in active_tile_ids:
-        neighbors = adjacency.get(str(tile_id), [])
-        for nid in neighbors:
-            nid_int = int(nid)
-            if nid_int not in active_tile_ids:
-                additional_active.add(nid_int)
-    
-    active_tile_ids.update(additional_active)
 
-    # SET flippable for active region BEFORE finding hexagons
-    for tile in tiling_data['tiles']:
-        if tile.get('removed', False):
-            continue
-        tile['flippable'] = (tile['id'] in active_tile_ids)
+def create_defects_strictly(tiling_data, energy_model, flip_engine, num_defects=10, log=None):
+    log = log or (lambda *a, **k: None)
 
-    # Now find flippable hexagons
+    log(f"  🔨 Creating {num_defects} defects (Strict Mode)...", 1)
+
+    active_ids = {t["id"] for t in tiling_data["tiles"] if t.get("growth_status") == "seed"}
+
+    for tile in tiling_data["tiles"]:
+        tile["flippable"] = (tile["id"] in active_ids) and not tile.get("removed", False)
+
     hexagons = flip_engine.find_flippable_hexagons(tiling_data)
-    active_hexagons = [h for h in hexagons if all(tid in active_tile_ids for tid in h)]
-    
-    # Create defects by applying uphill flips
-    defects_created = 0
-    defect_hexagons = []
-    
-    # Shuffle hexagons for random selection
+    active_hexagons = [h for h in hexagons if all(tid in active_ids for tid in h)]
+
+    import random
     random.shuffle(active_hexagons)
-    
+
+    created = 0
     for hexagon in active_hexagons:
-        if defects_created >= num_defects:
+        if created >= num_defects:
             break
-        
-        # 1. VERIFY VALIDITY: Hexagon might be broken by previous flips
-        # We need to construct the edge map temporarily just to check structure
-        # A lightweight check: do these 3 tiles still share edges?
-        # Better: use the engine's check
-        edge_to_tiles_dummy = {} # We can't easily rebuild this every time efficiently
-        # Instead, try-catch the flip or just proceed. The Engine's apply_flip checks structure.
-        # But we need neighborhood for energy calculation first.
-        
-        # Use updated k=3 neighborhood
-        neighborhood = flip_engine._get_k_ring_neighborhood(hexagon, tiling_data, k=3)
-        
-        # FIX: Wipe stored data and clear cache BEFORE computing energy
-        for tile_id in neighborhood:
-            tile = tiling_data['tiles'][tile_id]
-            tile.pop('vertex_class', None)
-            tile.pop('local_energy', None)
-        
-        if hasattr(energy_model, '_vertex_class_cache'):
-            energy_model._vertex_class_cache.clear()
-        if hasattr(energy_model, 'clear_cache'):
-            energy_model.clear_cache()
-        
-        # Compute energy BEFORE
-        energy_before = 0
-        for tile_id in neighborhood:
-            tile = tiling_data['tiles'][tile_id]
-            if not tile.get('removed', False):
-                energy_before += energy_model.compute_local_energy(tile_id, tiling_data)
 
-        # Apply flip (without Metropolis - we force it)
-        undo_info = flip_engine.capture_state(list(neighborhood), tiling_data)
-        success = flip_engine.apply_flip(hexagon, tiling_data)
-        
-        if not success:
-            flip_engine.restore_state(undo_info, tiling_data)
-            # CRITICAL: Also wipe energy fields in affected region to prevent corruption
-            for tid in neighborhood:
-                tile = tiling_data["tiles"][tid]
-                tile.pop("local_energy", None)
-                tile.pop("vertex_class", None)
-            continue
-        
-        # FIX: Wipe again after flip, then compute energy AFTER
-        for tile_id in neighborhood:
-            tile = tiling_data['tiles'][tile_id]
-            tile.pop('vertex_class', None)
-            tile.pop('local_energy', None)
-        
-        if hasattr(energy_model, '_vertex_class_cache'):
-            energy_model._vertex_class_cache.clear()
-        if hasattr(energy_model, 'clear_cache'):
-            energy_model.clear_cache()
-        
-        # Compute energy AFTER
-        energy_after = 0
-        for tile_id in neighborhood:
-            tile = tiling_data['tiles'][tile_id]
-            if not tile.get('removed', False):
-                energy_after += energy_model.compute_local_energy(tile_id, tiling_data)
+        region = flip_engine._get_k_ring_neighborhood(hexagon, tiling_data, k=4)
 
-        ΔE = energy_after - energy_before
-        
-        # Keep if it increases energy (creates a defect)
-        if ΔE > 0.1:  # Significant energy increase
-            defects_created += 1
-            defect_hexagons.append(hexagon)
-            print(f"    Defect #{defects_created}: ΔE = +{ΔE:.2f} (hexagon {hexagon})")
+        # Pre-wipe
+        for tid in region:
+            tiling_data["tiles"][tid].pop("local_energy", None)
+            tiling_data["tiles"][tid].pop("vertex_class", None)
+        clear_all_caches(energy_model)
+
+        # Calc Before
+        e_before = sum(
+            energy_model.compute_local_energy(tid, tiling_data)
+            for tid in region
+            if not tiling_data["tiles"][tid].get("removed")
+        )
+
+        undo = flip_engine.capture_state(list(region), tiling_data)
+        if flip_engine.apply_flip(hexagon, tiling_data):
+            # Post-wipe
+            for tid in region:
+                tiling_data["tiles"][tid].pop("local_energy", None)
+                tiling_data["tiles"][tid].pop("vertex_class", None)
+            clear_all_caches(energy_model)
+
+            # Calc After
+            e_after = sum(
+                energy_model.compute_local_energy(tid, tiling_data)
+                for tid in region
+                if not tiling_data["tiles"][tid].get("removed")
+            )
+
+            if e_after > e_before + 0.1:
+                created += 1
+            else:
+                flip_engine.restore_state(undo, tiling_data)
+                for tid in region:
+                    tiling_data["tiles"][tid].pop("local_energy", None)
+                    tiling_data["tiles"][tid].pop("vertex_class", None)
         else:
-            # Reject - doesn't create enough of a defect
-            flip_engine.restore_state(undo_info, tiling_data)
-            # Safety wipe
-            for tid in neighborhood:
-                tile = tiling_data["tiles"][tid]
-                tile.pop("local_energy", None)
-                tile.pop("vertex_class", None)
+            flip_engine.restore_state(undo, tiling_data)
 
-    print(f"  Created {defects_created} real geometric defects")
-    return list(active_tile_ids), defect_hexagons
-
-def count_defects_by_energy(tiling_data, active_tile_ids, energy_model, threshold=1.5):
-    """Count defects with GUARANTEED fresh computation"""
-    # FORCE fresh computation
-    wipe_all_energy_fields(tiling_data)
-    clear_all_caches(energy_model)
-    
-    defects = 0
-    total_energy = 0
-    defect_energies = []
-    
-    for tile_id in active_tile_ids:
-        tile = tiling_data["tiles"][tile_id]
-        if tile.get("removed", False):
-            continue
-        
-        # FRESH computation (no caching)
-        energy = energy_model.compute_local_energy(tile_id, tiling_data)
-        total_energy += energy
-        
-        if energy > threshold:
-            defects += 1
-            defect_energies.append(energy)
-    
-    avg_defect_energy = np.mean(defect_energies) if defect_energies else 0.0
-    return defects, avg_defect_energy
+    log(f"  ✅ Created {created} defects.", 1)
+    return active_ids
 
 
-def test_mc_healing_isolated(T=0.5, mc_steps=100, num_defects=15):
-    """Test MC healing on REAL geometric defects"""
-    print(f"\n🎯 DIAGNOSTIC 3: MC HEALING (T={T}, steps={mc_steps})")
+def run_experiment():
+    print("🧪 EXPERIMENT 03: PHASON HEALING (Refactored)")
     print("=" * 60)
-    
-    # Load fresh tiling ONCE
-    with open('data/processed/penrose_tiling_energy_initialized.json') as f:
-        base_tiling = json.load(f)
-    
-    # QUICK CHECK: Make sure tile IDs match list indices
-    for i, tile in enumerate(base_tiling['tiles']):
-        if tile['id'] != i:
-            print(f"🚨 ERROR: Tile {i} has id {tile['id']} - IDs don't match indices!")
-            print("This will break everything. Fix your tiling generation.")
-            return None
-    
-    # Create test tiling
-    test_tiling = copy.deepcopy(base_tiling)  # Use deepcopy instead of json.loads(json.dumps())
-    initialize_seed_region(test_tiling)
-    
-    # Create fresh instances
-    from src.energy.combinatorial_classifier import CombinatorialVertexClassifier
-    from src.energy.widom_inspired_energy import WidomInspiredEnergy, EnergyParameters
-    from src.simulation.flip_engine import FlipEngine
-    from src.simulation.mc_engine import MonteCarloEngine
-    
-    # Setup energy model and flip engine
-    classifier = CombinatorialVertexClassifier()
-    energy_params = EnergyParameters()
-    energy_model = WidomInspiredEnergy(energy_params)
-    flip_engine = FlipEngine(classifier, energy_model, verbose=False)  # Add verbose=False
-    
-    # Create REAL geometric defects
-    active_tile_ids, defect_hexagons = create_real_geometric_defects(
-        test_tiling, energy_model, flip_engine, num_defects=num_defects
+
+    cfg = ConfigManager("configs/phase2_experiments.toml")
+
+    # ConfigManager stores the merged TOML in cfg._config
+
+    cfg_dict = getattr(cfg, "_config", {})  # raw dict of all sections
+    # Use the official properties for sections that exist as properties
+    energy_cfg = cfg.energy
+    mc_cfg = cfg.monte_carlo
+    # Sections that don't have dedicated properties (like healing/debug) read from cfg_dict
+    healing = cfg_dict.get("healing", {})
+    debug = cfg_dict.get("debug", {})
+
+
+    # Verbosity: only 1 or 2 (no 0)
+    verbosity = int(debug.get("verbosity", 1))
+    # Allow CLI override: --verbosity 1|2
+    if "--verbosity" in sys.argv:
+        try:
+            i = sys.argv.index("--verbosity")
+            verbosity = int(sys.argv[i + 1])
+        except Exception:
+            pass
+    verbosity = 2 if verbosity >= 2 else 1
+
+    progress_every = int(debug.get("progress_every", 500))
+    trace_every = int(debug.get("trace_every", 50))
+    trace_every = max(1, trace_every)  # safety
+
+    log = _make_logger(verbosity)
+
+    scenario = str(healing.get("scenario", "base"))
+    tiling_path = str(healing.get("tiling_path", "data/processed/penrose_tiling_energy_initialized.json"))
+    output_dir = str(healing.get("output_dir", "data/experiments/healing"))
+
+    seed_radius = float(healing.get("seed_radius", 10.0))
+    num_defects = int(healing.get("num_defects", 15))
+    defect_threshold = float(healing.get("defect_threshold", 1.5))
+
+    temperature = float(mc_cfg.get("temperature", 0.1))
+    base_steps = int(mc_cfg.get("base_steps", 100))
+    neighborhood_radius = int(mc_cfg.get("neighborhood_radius", 3))
+    verify_energy = bool(mc_cfg.get("verify_energy", False))
+
+    # Total steps: prefer healing.sweep_steps if present, otherwise monte_carlo.steps, otherwise base_steps
+    total_steps = int(healing.get("sweep_steps", mc_cfg.get("steps", base_steps)))
+
+    # Output header (verbosity 1+)
+    log(f"📥 Input tiling: {tiling_path}", 1)
+    log(f"📤 Output dir : {output_dir}", 1)
+    log(f"⚙️  scenario={scenario} seed_radius={seed_radius} num_defects={num_defects} defect_threshold={defect_threshold}", 1)
+    log(f"⚙️  MC: T={temperature} steps={total_steps} R={neighborhood_radius} verify_energy={verify_energy} base_steps={base_steps}", 1)
+    log("-" * 60, 1)
+
+    tiling = load_tiling(tiling_path)
+    classifier, energy_model, flip_engine = setup_simulation_components(str(cfg.config_path))
+
+
+    initialize_seed_region(tiling, seed_radius=seed_radius, set_flippable=True)
+
+    active_ids = create_defects_strictly(
+        tiling, energy_model, flip_engine,
+        num_defects=num_defects,
+        log=log
     )
-    
-    if len(defect_hexagons) == 0:
-        print("❌ Failed to create real defects - test invalid")
-        return None
-    
-    # Set flippable for active region only
-    for tile in test_tiling['tiles']:
-        if tile['id'] in active_tile_ids and not tile.get('removed', False):
-            tile['flippable'] = True
-        else:
-            tile['flippable'] = False
-    
-    # Count initial defects (by energy, not labels)
-    defects_before, avg_defect_energy_before = count_defects_by_energy(
-        test_tiling, active_tile_ids, energy_model
-    )
-    
-    print(f"Active region: {len(active_tile_ids)} tiles")
-    print(f"Initial defects (energy > 1.5): {defects_before}")
-    print(f"Average defect energy: {avg_defect_energy_before:.2f}")
-    
-    if defects_before == 0:
-        print("❌ No real defects created - test invalid")
-        return None
-    
-    
-    # GLOBAL WIPE: Clear all cached energy fields before MC starts
-    wipe_all_energy_fields(test_tiling)
+
+    # Initial defect count
+    wipe_all_energy_fields(tiling)
     clear_all_caches(energy_model)
-    
-    # Setup MC engine - USE RADIUS=3 (validated as optimal)
-    mc_config = {
-        'temperature': T,
-        'base_steps': mc_steps,
-        'burn_in_steps': 20,
-        'neighborhood_radius': 3,  # <-- CRITICAL: Use validated radius
-        'verify_energy': False,    # We'll verify manually
-        'verify_frequency': 0.1,
-    }
-    
-    # Setup MC engine with validated radius
-    mc_engine = MonteCarloEngine(
-        temperature=T,
+    defects_start = sum(
+        1 for tid in active_ids
+        if energy_model.compute_local_energy(tid, tiling) > defect_threshold
+    )
+    log(f"  Initial Defects: {defects_start}", 1)
+
+    # MC engine
+    mc = MonteCarloEngine(
+        temperature=temperature,
         energy_model=energy_model,
         flip_engine=flip_engine,
-        config=mc_config  # Use the config we defined above
-    )
-    
-    # Initialize energy (should be fresh after wipe)
-    mc_engine.initialize_energy(test_tiling)
-    energy_before = mc_engine.current_energy
-    
-    # Track metrics during MC
-    metrics = {
-        'defects': [],
-        'energy': [],
-        'acceptance': [],
-        'flippable': []
-    }
-    
-    # Run MC steps while tracking
-    for step in range(mc_steps):
-        accepted, ΔE = mc_engine.run_step(test_tiling)
-        
-        # Count defects in active region (by energy)
-        defects, _ = count_defects_by_energy(test_tiling, active_tile_ids, energy_model)
-        
-        # Count flippable hexagons in active region
-        hexagons = flip_engine.find_flippable_hexagons(test_tiling)
-        active_hexagons = [h for h in hexagons if all(tid in active_tile_ids for tid in h)]
-        
-        metrics['defects'].append(defects)
-        metrics['energy'].append(mc_engine.current_energy)
-        metrics['acceptance'].append(accepted)
-        metrics['flippable'].append(len(active_hexagons))
-    
-    # Final counts
-    defects_after, avg_defect_energy_after = count_defects_by_energy(
-        test_tiling, active_tile_ids, energy_model
-    )
-    
-    # Analyze
-    healing = defects_before - defects_after
-    healing_efficiency = healing / defects_before if defects_before > 0 else 0
-    
-    # MC statistics
-    accepted_steps = sum(metrics['acceptance'])
-    acceptance_rate = accepted_steps / mc_steps
-    
-    # Check energy consistency (FRESH computation)
-    energy_recomputed = compute_total_energy_fresh(energy_model, test_tiling)
-    energy_drift = abs(energy_recomputed - mc_engine.current_energy)
+        config={
+            "temperature": temperature,
+            "base_steps": base_steps,
+            "neighborhood_radius": neighborhood_radius,
+            "verify_energy": verify_energy,
+            "verbosity": verbosity,
+            "trace_every": trace_every,
 
-    print(f"\n📊 RESULTS:")
-    print(f"  Defects: {defects_before} → {defects_after} (Δ={healing:+d})")
-    print(f"  Healing efficiency: {healing_efficiency:+.1%}")
-    print(f"  Avg defect energy: {avg_defect_energy_before:.2f} → {avg_defect_energy_after:.2f}")
-    print(f"  Energy change: {mc_engine.current_energy - energy_before:+.2f}")
-    print(f"  Acceptance rate: {acceptance_rate:.1%}")
-    print(f"  Avg flippable hexagons: {np.mean(metrics['flippable']):.1f}")
-    print(f"  Energy consistency drift: {energy_drift:.6f}")
-    
-    # Check invariants
-    print(f"\n🔍 INVARIANT CHECKS:")
-    
-    if energy_drift > 0.01:
-        print(f"  ❌ Energy inconsistent! Drift = {energy_drift:.4f}")
-    else:
-        print(f"  ✅ Energy consistent (drift < 0.01)")
-    
-    # Interpretation
-    print(f"\n🎯 INTERPRETATION:")
-    
-    if healing > 0:
-        print(f"  ✅ REAL HEALING DETECTED: {healing} defects removed")
-        print(f"     Efficiency: {healing_efficiency:.1%}")
-        
-        if acceptance_rate > 0.1:
-            print(f"  ✅ MC is active (acceptance: {acceptance_rate:.1%})")
-        else:
-            print(f"  ⚠️  MC acceptance very low ({acceptance_rate:.1%})")
-    elif healing == 0:
-        print(f"  ⚖️  NO NET HEALING: Defect count unchanged")
-        print(f"     MC maintains equilibrium")
-    else:
-        print(f"  ❌ NEGATIVE HEALING: Defects increased by {-healing}")
-    
-    # Check if MC had moves
-    if np.mean(metrics['flippable']) < 1:
-        print(f"  ❌ MC STARVED: Avg flippable hexagons = {np.mean(metrics['flippable']):.1f}")
-    
-    return {
-        'temperature': T,
-        'defects_before': defects_before,
-        'defects_after': defects_after,
-        'healing': healing,
-        'healing_efficiency': healing_efficiency,
-        'energy_change': mc_engine.current_energy - energy_before,
-        'acceptance_rate': acceptance_rate,
-        'avg_flippable': np.mean(metrics['flippable']),
-        'energy_drift': energy_drift,
-        'avg_defect_energy_before': avg_defect_energy_before,
-        'avg_defect_energy_after': avg_defect_energy_after
+        },
+    )
+    mc.initialize_energy(tiling)
+
+    log("🎲 Starting Monte Carlo...", 1)
+    t0 = time.time()
+
+    accepted_total = 0
+    max_drift = 0.0
+    done = 0
+
+    while done < total_steps:
+        chunk = min(progress_every, total_steps - done)
+        stats = mc.run_sweep(tiling, steps=chunk)
+        accepted_total += int(stats.get("accepted", 0))
+        max_drift = max(max_drift, float(stats.get("max_drift", 0.0)))
+        done += chunk
+
+        log(
+            f"  ⏳ MC progress: {done}/{total_steps} ({100.0*done/max(1,total_steps):.1f}%) "
+            f"| accepted={accepted_total} | max_drift={max_drift:.6f}",
+            1
+        )
+
+    dt = time.time() - t0
+    acceptance = accepted_total / max(1, total_steps)
+    log(f"✅ MC finished in {dt:.2f}s | acceptance={acceptance:.1%} | max_drift={max_drift:.6f}", 1)
+
+    # Final defect count
+    wipe_all_energy_fields(tiling)
+    clear_all_caches(energy_model)
+    defects_end = sum(
+        1 for tid in active_ids
+        if energy_model.compute_local_energy(tid, tiling) > defect_threshold
+    )
+
+    log("-" * 60, 1)
+    eff = (defects_start - defects_end) / max(1, defects_start)
+    log(f"RESULTS: {defects_start} -> {defects_end} (Efficiency: {eff:.1%})", 1)
+    log(f"Drift: {max_drift:.6f}\n", 1)
+
+    # Save results
+    out_dir = Path(output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    run_id = _next_run_id(out_dir, f"healing_{scenario}")
+    run_path = out_dir / f"healing_{scenario}_run_{run_id:03d}.json"
+    latest_path = out_dir / "latest.json"
+
+    payload = {
+        "meta": {
+            "phase": "phase1_healing",
+            "scenario": scenario,
+            "input_tiling": tiling_path,
+            "output_dir": output_dir,
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        },
+        "config": {
+            "seed_radius": seed_radius,
+            "num_defects": num_defects,
+            "defect_threshold": defect_threshold,
+            "monte_carlo": {
+                "temperature": temperature,
+                "steps": total_steps,
+                "base_steps": base_steps,
+                "neighborhood_radius": neighborhood_radius,
+                "verify_energy": verify_energy,
+            },
+            "verbosity": verbosity,
+            "progress_every": progress_every,
+            "trace_every": trace_every,
+
+        },
+        "results": {
+            "defects_start": defects_start,
+            "defects_end": defects_end,
+            "efficiency": eff,
+            "accepted": accepted_total,
+            "acceptance_rate": acceptance,
+            "max_drift": max_drift,
+            "runtime_s": dt,
+        },
     }
+
+    with open(run_path, "w") as f:
+        json.dump(payload, f, indent=2)
+
+    with open(latest_path, "w") as f:
+        json.dump(payload, f, indent=2)
+
+    log(f"💾 Saved: {run_path.as_posix()}", 1)
+    log(f"📌 Latest: {latest_path.as_posix()}", 1)
+
 
 if __name__ == "__main__":
-    print("🧪 TESTING MC HEALING WITH REAL GEOMETRIC DEFECTS")
-    print("=" * 60)
-    
-    # Test multiple temperatures
-    temperatures = [0.1, 0.3, 1.0, 2.0, 5.0]
-    all_results = []
-    
-    for T in temperatures:
-        result = test_mc_healing_isolated(T=T, mc_steps=100, num_defects=15)
-        if result:
-            all_results.append(result)
-    
-    # Summary
-    if all_results:
-        print("\n" + "=" * 80)
-        print("📈 TEMPERATURE DEPENDENCE SUMMARY:")
-        print("=" * 80)
-        print("Temp | Defects Before→After | Healing | Efficiency | Accept% | Avg Flippable")
-        print("-" * 80)
-        
-        for r in all_results:
-            heal = "✅" if r['healing'] > 0 else "❌" if r['healing'] < 0 else "⚖️"
-            print(f"T={r['temperature']:4.1f} | "
-                  f"{r['defects_before']:3d}→{r['defects_after']:<3d} | "
-                  f"{heal} {r['healing']:+3d} | "
-                  f"{r['healing_efficiency']:9.1%} | "
-                  f"{r['acceptance_rate']:7.1%} | "
-                  f"{r['avg_flippable']:6.1f}")
-        
-        # Find best temperature
-        if any(r['healing'] > 0 for r in all_results):
-            best = max(all_results, key=lambda x: x['healing_efficiency'])
-            print(f"\n🎯 OPTIMAL: T={best['temperature']} "
-                  f"(efficiency={best['healing_efficiency']:.1%})")
-        else:
-            print("\n❌ NO HEALING at any temperature")
+    run_experiment()

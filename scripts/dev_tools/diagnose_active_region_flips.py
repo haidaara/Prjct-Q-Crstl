@@ -1,125 +1,57 @@
 #!/usr/bin/env python3
-"""
-Diagnostic 1: Count flippable hexagons in active region vs globally
-FOCUS: Is MC even active?
-FIXED: Global count now correctly counts all flips regardless of flippable flag
-"""
+"""Diagnostic: flippable hexagons in active region vs globally.
 
-import json
+Use this when MC seems starved for moves (almost no proposals/accepts).
+"""
 import sys
-sys.path.insert(0, '.')
+from pathlib import Path
+from collections import Counter
 
-def initialize_seed_region(tiling_data, seed_center=None, seed_radius=10.0):
-    """Initialize a seed region (same as in growth_engine)"""
-    if seed_center is None:
-        window_size = tiling_data.get('window_size', [60.0, 60.0])
-        seed_center = [window_size[0]/2, window_size[1]/2]
-    
-    for tile in tiling_data['tiles']:
-        if tile.get('removed', False):
-            continue
-        dx = tile['center'][0] - seed_center[0]
-        dy = tile['center'][1] - seed_center[1]
-        if (dx*dx + dy*dy) <= seed_radius*seed_radius:
-            tile['growth_status'] = 'seed'
-            tile['flippable'] = True
-        else:
-            tile['growth_status'] = 'ungrown'
-            tile['flippable'] = False
+project_root = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(project_root))
 
-def count_flippable_in_active_region():
-    """Count how many flips are actually available in active region"""
-    print("🎯 DIAGNOSTIC 1: FLIPPABLE HEXAGONS IN ACTIVE REGION")
+from src.utils.script_utils import load_tiling, setup_simulation_components, initialize_seed_region
+
+
+def main(seed_radius: float = 10.0) -> int:
+    print("🔎 DIAGNOSE ACTIVE REGION FLIPS")
     print("=" * 60)
-    
-    # Load tiling
-    with open('data/processed/penrose_tiling_energy_initialized.json') as f:
-        tiling = json.load(f)
-    
-    # Initialize seed region (so we have an active region)
-    initialize_seed_region(tiling)
-    
-    # Fresh imports
-    from src.energy.combinatorial_classifier import CombinatorialVertexClassifier
-    from src.energy.widom_inspired_energy import WidomInspiredEnergy, EnergyParameters
-    from src.simulation.flip_engine import FlipEngine
-    
-    # Create fresh instances
-    classifier = CombinatorialVertexClassifier()
-    energy_model = WidomInspiredEnergy(EnergyParameters())
-    flip_engine = FlipEngine(classifier, energy_model)
-    
-    # FIX: Save current flippable states and set all to True for global count
-    saved_flippable = {}
-    for tile in tiling['tiles']:
-        if tile.get('removed', False):
-            continue
-        saved_flippable[tile['id']] = tile.get('flippable', True)
-        tile['flippable'] = True  # Temporarily set all to True for global count
-    
-    # Get TRUE global flippable hexagons (all possible flips)
-    all_hexagons = flip_engine.find_flippable_hexagons(tiling)
-    
-    # Restore flippable states
-    for tile in tiling['tiles']:
-        if tile.get('removed', False):
-            continue
-        tile['flippable'] = saved_flippable.get(tile['id'], True)
-    
-    # Define active region (same as growth constraints use)
-    active_tile_ids = set()
-    for tile in tiling['tiles']:
-        if tile.get('removed', False):
-            continue
-        
-        # Active region = seed
-        if tile.get('growth_status') == 'seed':
-            active_tile_ids.add(tile['id'])
-    
-    # Add 1-ring neighbors (healing extension)
-    adjacency = tiling['adjacency_graph']
-    additional_active = set()
-    for tile_id in active_tile_ids:
-        neighbors = adjacency.get(str(tile_id), [])
-        for nid in neighbors:
-            nid_int = int(nid)
-            if nid_int not in active_tile_ids:
-                additional_active.add(nid_int)
-    
-    active_tile_ids.update(additional_active)
-    
-    # Set flippable for the extended active region (for MC)
-    for tile in tiling['tiles']:
-        if tile['id'] in active_tile_ids and not tile.get('removed', False):
-            tile['flippable'] = True
-        elif not tile.get('removed', False):
-            tile['flippable'] = False
-    
-    # Count hexagons in active region (with current flippable settings)
-    active_hexagons = []
-    for hexagon in all_hexagons:  # Use the global list we computed
-        if all(tid in active_tile_ids for tid in hexagon):
-            active_hexagons.append(hexagon)
-    
-    # Report
-    print(f"Total flippable hexagons globally: {len(all_hexagons)}")
-    print(f"Flippable hexagons in active region: {len(active_hexagons)}")
-    print(f"Active region size (tiles): {len(active_tile_ids)}")
-    print(f"Ratio: {len(active_hexagons)/max(1, len(all_hexagons)):.1%}")
-    
-    if len(active_hexagons) == 0:
-        print("\n🚨 CRITICAL: NO FLIPPABLE HEXAGONS IN ACTIVE REGION!")
-        print("MC cannot propose any moves - healing impossible")
-        print("Need to adjust growth constraints or active region definition")
-        return False
-    elif len(active_hexagons) < 10:
-        print("\n⚠️ WARNING: Very few flips in active region")
-        print("MC will be starved for moves")
-        return False
-    else:
-        print("\n✅ Active region has sufficient flippable hexagons")
-        return True
+
+    tiling = load_tiling()
+    _, _, flip_engine = setup_simulation_components()
+
+    # mark seed + optionally set flippable (we want active region flippability)
+    initialize_seed_region(tiling, seed_radius=seed_radius, set_flippable=True)
+
+    tiles = tiling["tiles"]
+    active_ids = {t["id"] for t in tiles if t.get("growth_status") == "seed" and not t.get("removed", False)}
+
+    # Global: ignore flippable flag by temporarily enabling it
+    for t in tiles:
+        if not t.get("removed", False):
+            t["flippable"] = True
+    global_hex = flip_engine.find_flippable_hexagons(tiling)
+
+    # Active: restore active-only flippable
+    for t in tiles:
+        t["flippable"] = (t["id"] in active_ids) and (not t.get("removed", False))
+    active_hex = flip_engine.find_flippable_hexagons(tiling)
+
+    print(f"Seed radius: {seed_radius}")
+    print(f"Active (seed) tiles: {len(active_ids)}")
+    print(f"Flippable hexagons (global): {len(global_hex)}")
+    print(f"Flippable hexagons (active): {len(active_hex)}")
+
+    if len(active_hex) == 0:
+        print("\n🚨 CRITICAL: 0 flippable hexagons in active region → MC cannot move.")
+        return 1
+    if len(active_hex) < 10:
+        print("\n⚠️  WARNING: very few flippable hexagons in active region → MC will be slow.")
+        return 1
+
+    print("\n✅ Active region has sufficient moves.")
+    return 0
+
 
 if __name__ == "__main__":
-    success = count_flippable_in_active_region()
-    sys.exit(0 if success else 1)
+    raise SystemExit(main())

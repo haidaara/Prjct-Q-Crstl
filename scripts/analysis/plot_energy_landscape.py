@@ -1,215 +1,244 @@
 #!/usr/bin/env python3
 """
-Diagnostic 2: Fixed version with proper energy consistency
+Plot / diagnose the energy landscape by sampling phason flips and measuring ΔE.
+
+This consolidates older:
+- plot_energy_landscape.py
+- debug_energy_distribution.py
+
+Key properties:
+- Uses strict cache/field hygiene (wipes local_energy + vertex_class + clears model caches).
+- Uses a k-ring neighborhood (default k=4) for robust manual ΔE estimation.
+- Does NOT modify your input tiling on disk (all work is in-memory).
+
+Examples:
+  python scripts/analysis/plot_energy_landscape.py
+  python scripts/analysis/plot_energy_landscape.py --sample 800 --k 4 --seed-radius 10 --seed-only
+  python scripts/analysis/plot_energy_landscape.py --config configs/phase1_baseline.toml --outdir results/analysis
 """
 
+from __future__ import annotations
+
+import argparse
+import copy
 import json
-import numpy as np
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import os
+import math
 import random
+import statistics
 import sys
-import copy  # <-- ADD THIS
+from pathlib import Path
+from typing import Iterable, List, Optional, Sequence, Tuple
 
-sys.path.insert(0, '.')
+# --- ensure project root in sys.path
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.utils.energy_utils import (
-    wipe_all_energy_fields, clear_all_caches,
-    get_k_ring_neighborhood
-)
-from src.energy.combinatorial_classifier import CombinatorialVertexClassifier
-from src.energy.widom_inspired_energy import WidomInspiredEnergy, EnergyParameters
-from src.simulation.flip_engine import FlipEngine
+# --- imports from project
+from src.utils.script_utils import load_tiling, setup_simulation_components, initialize_seed_region  # type: ignore
 
-def initialize_seed_region(tiling_data, seed_center=None, seed_radius=10.0):
-    """Initialize a seed region"""
-    if seed_center is None:
-        window_size = tiling_data.get('window_size', [60.0, 60.0])
-        seed_center = [window_size[0]/2, window_size[1]/2]
-    
-    for tile in tiling_data['tiles']:
-        if tile.get('removed', False):
+# Optional imports (fallbacks included)
+try:
+    from src.utils.energy_utils import clear_all_caches, wipe_all_energy_fields  # type: ignore
+except Exception:  # pragma: no cover
+    def clear_all_caches(model) -> None:
+        """Best-effort cache clearing if energy_utils.clear_all_caches is unavailable."""
+        if hasattr(model, "clear_caches") and callable(getattr(model, "clear_caches")):
+            model.clear_caches()
+            return
+        for attr in ("_cache", "_local_cache", "_vertex_cache", "_local_energy_cache", "_vertex_class_cache"):
+            if hasattr(model, attr):
+                try:
+                    setattr(model, attr, {})
+                except Exception:
+                    pass
+
+    def wipe_all_energy_fields(tiling: dict) -> None:
+        """Best-effort field wipe if energy_utils.wipe_all_energy_fields is unavailable."""
+        for t in tiling.get("tiles", []):
+            t.pop("local_energy", None)
+            t.pop("vertex_class", None)
+
+
+def _wipe_tile_fields(tiling: dict, tile_ids: Iterable[int]) -> None:
+    tiles = tiling["tiles"]
+    for tid in tile_ids:
+        tiles[tid].pop("local_energy", None)
+        tiles[tid].pop("vertex_class", None)
+
+
+def _region_energy(tiling: dict, region_ids: Sequence[int], energy_model) -> float:
+    # Hygiene before any manual energy sum
+    _wipe_tile_fields(tiling, region_ids)
+    clear_all_caches(energy_model)
+    e = 0.0
+    for tid in region_ids:
+        if tiling["tiles"][tid].get("removed", False):
             continue
-        dx = tile['center'][0] - seed_center[0]
-        dy = tile['center'][1] - seed_center[1]
-        if (dx*dx + dy*dy) <= seed_radius*seed_radius:
-            tile['growth_status'] = 'seed'
-            tile['flippable'] = True
-        else:
-            tile['growth_status'] = 'ungrown'
-            tile['flippable'] = False
+        e += float(energy_model.compute_local_energy(tid, tiling))
+    return e
 
-def analyze_proposed_ΔE_distribution_fixed(sample_size=200, neighborhood_radius=3):
-    """Analyze ΔE with proper energy consistency"""
-    print("\n🎯 DIAGNOSTIC 2 (FIXED): ΔE DISTRIBUTION WITH ENERGY CONSISTENCY")
-    print("=" * 60)
-    
-    # Load tiling ONCE
-    with open('data/processed/penrose_tiling_energy_initialized.json') as f:
-        base_tiling = json.load(f)
-    
-    # Initialize seed region in base tiling
-    initialize_seed_region(base_tiling)
-    
-    # Setup
-    classifier = CombinatorialVertexClassifier()
-    energy_model = WidomInspiredEnergy(EnergyParameters())
-    flip_engine = FlipEngine(classifier, energy_model, verbose=False)  # <-- ADD verbose=False
-    
-    # Define active region in base tiling
-    active_tile_ids = set()
-    for tile in base_tiling['tiles']:
-        if tile.get('removed', False):
-            continue
-        if tile.get('growth_status') == 'seed':
-            active_tile_ids.add(tile['id'])
-    
-    # Add 1-ring neighbors
-    adjacency = base_tiling['adjacency_graph']
-    for tile_id in list(active_tile_ids):
-        neighbors = adjacency.get(str(tile_id), [])
-        for nid in neighbors:
-            nid_int = int(nid)
-            active_tile_ids.add(nid_int)
-    
-    # Get all flips, filter to active region
-    all_hexagons = flip_engine.find_flippable_hexagons(base_tiling)
-    active_hexagons = [h for h in all_hexagons if all(tid in active_tile_ids for tid in h)]
-    
-    # Sample
-    if len(active_hexagons) < sample_size:
-        sample_hexagons = active_hexagons
-    else:
-        sample_hexagons = random.sample(active_hexagons, sample_size)
-    
-    ΔE_values = []
-    proposals_by_sign = {'downhill': 0, 'uphill': 0, 'neutral': 0}
-    defect_info = {'near_defect': [], 'perfect': []}
-    
-    print(f"Analyzing {len(sample_hexagons)} flips with radius={neighborhood_radius}...")
-    
-    for i, hexagon in enumerate(sample_hexagons):
-        if i % 50 == 0:
-            print(f"  Progress: {i}/{len(sample_hexagons)}")
-        
-        # COPY from memory (FAST!)
-        tiling_copy = copy.deepcopy(base_tiling)
-        
-        # Get neighborhood
-        neighborhood = get_k_ring_neighborhood(hexagon, tiling_copy, k=neighborhood_radius)
-        
-        # OPTIMIZED: Compute all energies once for defect check
-        wipe_all_energy_fields(tiling_copy)
-        clear_all_caches(energy_model)
-        
-        energies_before = {}
-        for tile_id in neighborhood:
-            tile = tiling_copy["tiles"][tile_id]
-            if not tile.get("removed", False):
-                energies_before[tile_id] = energy_model.compute_local_energy(tile_id, tiling_copy)
-        
-        # Check for defects using energy threshold
-        has_defect = any(energy > 1.5 for energy in energies_before.values())
-        energy_before = sum(energies_before.values())
-        
-        # Apply flip
-        undo_info = flip_engine.capture_state(hexagon, tiling_copy)
-        success = flip_engine.apply_flip(hexagon, tiling_copy)
-        
-        if not success:
-            flip_engine.restore_state(undo_info, tiling_copy)
-            continue
-        
-        # Compute energy AFTER - wipe again
-        wipe_all_energy_fields(tiling_copy)
-        clear_all_caches(energy_model)
-        
-        energy_after = 0
-        for tile_id in neighborhood:
-            tile = tiling_copy["tiles"][tile_id]
-            if not tile.get("removed", False):
-                energy_after += energy_model.compute_local_energy(tile_id, tiling_copy)
-        
-        ΔE = energy_after - energy_before
-        ΔE_values.append(ΔE)
-        
-        # Classify
-        if ΔE < -0.001:
-            proposals_by_sign['downhill'] += 1
-        elif ΔE > 0.001:
-            proposals_by_sign['uphill'] += 1
+
+def _set_all_flippable(tiling: dict) -> None:
+    for t in tiling["tiles"]:
+        if t.get("removed", False):
+            t["flippable"] = False
         else:
-            proposals_by_sign['neutral'] += 1
-        
-        # Store by defect status
-        if has_defect:
-            defect_info['near_defect'].append(ΔE)
-        else:
-            defect_info['perfect'].append(ΔE)
-        
-        # Restore
-        flip_engine.restore_state(undo_info, tiling_copy)
-    
-    # Report
-    if not ΔE_values:
-        print("❌ No successful flips to analyze")
+            t["flippable"] = True
+
+
+def _seed_only_filter(hexagons: List[List[int]], tiling: dict) -> List[List[int]]:
+    tiles = tiling["tiles"]
+    out = []
+    for h in hexagons:
+        if all(tiles[tid].get("growth_status") == "seed" for tid in h):
+            out.append(h)
+    return out
+
+
+def measure_delta_e_for_hexagon(
+    tiling: dict,
+    hexagon: Sequence[int],
+    flip_engine,
+    energy_model,
+    k: int = 4,
+) -> Optional[float]:
+    """
+    Returns ΔE (after - before) for this hexagon, or None if the flip could not be applied.
+    """
+    # Neighborhood for robust manual delta calculation
+    region_ids = list(flip_engine._get_k_ring_neighborhood(list(hexagon), tiling, k=k))
+
+    e_before = _region_energy(tiling, region_ids, energy_model)
+
+    undo_state = flip_engine.capture_state(region_ids, tiling)
+    applied = flip_engine.apply_flip(list(hexagon), tiling)
+    if not applied:
+        flip_engine.restore_state(undo_state, tiling)
+        _wipe_tile_fields(tiling, region_ids)
         return None
-    
-    ΔE_arr = np.array(ΔE_values)
-    
-    print(f"\n📊 ΔE STATISTICS (n={len(ΔE_arr)}, radius={neighborhood_radius}):")
-    print(f"  Mean: {np.mean(ΔE_arr):+.6f}")
-    print(f"  Std:  {np.std(ΔE_arr):.6f}")
-    print(f"  Min:  {np.min(ΔE_arr):+.6f}")
-    print(f"  Max:  {np.max(ΔE_arr):+.6f}")
-    
-    print(f"\n📊 PROPOSAL DISTRIBUTION:")
-    total = len(ΔE_arr)
-    for key, count in proposals_by_sign.items():
-        print(f"  {key}: {count}/{total} ({count/max(1, total):.1%})")
-    
-    # Defect analysis
-    if defect_info['near_defect'] and defect_info['perfect']:
-        print(f"\n🔍 NEAR DEFECTS vs PERFECT REGIONS:")
-        near_defect_arr = np.array(defect_info['near_defect'])
-        perfect_arr = np.array(defect_info['perfect'])
-        
-        print(f"  Near defects (n={len(near_defect_arr)}):")
-        print(f"    Mean ΔE: {np.mean(near_defect_arr):+.6f}")
-        print(f"    % downhill: {np.sum(near_defect_arr < -0.001)/max(1, len(near_defect_arr)):.1%}")
-        
-        print(f"  Perfect regions (n={len(perfect_arr)}):")
-        print(f"    Mean ΔE: {np.mean(perfect_arr):+.6f}")
-        print(f"    % downhill: {np.sum(perfect_arr < -0.001)/max(1, len(perfect_arr)):.1%}")
-    
-    # Plot
-    os.makedirs('data/diagnostics', exist_ok=True)
-    plt.figure(figsize=(10, 6))
-    plt.hist(ΔE_arr, bins=30, alpha=0.7, edgecolor='black')
-    plt.axvline(x=0, color='r', linestyle='--', label='ΔE = 0')
-    plt.xlabel('ΔE (energy change)')
-    plt.ylabel('Count')
-    plt.title(f'ΔE Distribution (radius={neighborhood_radius}, n={len(ΔE_arr)})')
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    plt.savefig('data/diagnostics/delta_E_distribution_fixed.png', dpi=150, bbox_inches='tight')
-    print(f"\n📈 Plot saved: data/diagnostics/delta_E_distribution_fixed.png")
-    
-    return {
-        'ΔE_mean': float(np.mean(ΔE_arr)),
-        'ΔE_std': float(np.std(ΔE_arr)),
-        'uphill_fraction': proposals_by_sign['uphill']/max(1, total),
-        'downhill_fraction': proposals_by_sign['downhill']/max(1, total),
-        'sample_size': total,
-        'neighborhood_radius': neighborhood_radius
-    }
+
+    e_after = _region_energy(tiling, region_ids, energy_model)
+
+    # Restore + hygiene
+    flip_engine.restore_state(undo_state, tiling)
+    _wipe_tile_fields(tiling, region_ids)
+    clear_all_caches(energy_model)
+
+    return float(e_after - e_before)
+
+
+def plot_histogram(deltas: List[float], out_png: Path, title: str) -> None:
+    import matplotlib
+    matplotlib.use("Agg")  # safe for headless runs
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    arr = np.array(deltas, dtype=float)
+    fig = plt.figure(figsize=(10, 6))
+    plt.hist(arr, bins=50, edgecolor="black")
+    plt.axvline(0.0)
+    plt.title(title)
+    plt.xlabel("ΔE (after - before)")
+    plt.ylabel("Count")
+    fig.tight_layout()
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_png, dpi=150)
+    plt.close(fig)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--tiling", default="data/processed/penrose_tiling_energy_initialized.json",
+                    help="Path to tiling JSON (default: energy-initialized tiling).")
+    ap.add_argument("--config", default="configs/phase1_baseline.toml",
+                    help="Energy/config TOML used to build the energy model.")
+    ap.add_argument("--sample", type=int, default=500,
+                    help="How many hexagons to sample (default 500). Use 0 to use all.")
+    ap.add_argument("--k", type=int, default=4,
+                    help="k-ring neighborhood for manual ΔE (default 4).")
+    ap.add_argument("--seed-radius", type=float, default=10.0,
+                    help="Seed radius if using --seed-only (default 10).")
+    ap.add_argument("--seed-only", action="store_true",
+                    help="Restrict sampled flips to seed-region-only hexagons.")
+    ap.add_argument("--outdir", default="results/analysis",
+                    help="Output directory for plots/data.")
+    ap.add_argument("--save-deltas", action="store_true",
+                    help="Also save ΔE list as JSON.")
+    ap.add_argument("--rng-seed", type=int, default=0,
+                    help="RNG seed for sampling (default 0).")
+    args = ap.parse_args()
+
+    random.seed(args.rng_seed)
+
+    # Work on a copy so we never mutate your data file
+    tiling = load_tiling(args.tiling)
+    tiling = copy.deepcopy(tiling)
+
+    # Setup engines (config-aware)
+    _, energy_model, flip_engine = setup_simulation_components(args.config, verbose=False)
+
+    # Choose region
+    if args.seed_only:
+        initialize_seed_region(tiling, seed_radius=float(args.seed_radius), set_flippable=True)
+    else:
+        _set_all_flippable(tiling)
+
+    # Find hexagons
+    hexagons = flip_engine.find_flippable_hexagons(tiling)
+    if args.seed_only:
+        hexagons = _seed_only_filter(hexagons, tiling)
+
+    if not hexagons:
+        print("❌ No flippable hexagons found for the selected region.")
+        return 1
+
+    # Sampling
+    if args.sample and args.sample > 0 and len(hexagons) > args.sample:
+        hexagons = random.sample(hexagons, args.sample)
+
+    print(f"🔍 Sampling {len(hexagons)} hexagons (k={args.k}, seed_only={args.seed_only}) ...")
+
+    deltas: List[float] = []
+    failed = 0
+    for h in hexagons:
+        de = measure_delta_e_for_hexagon(tiling, h, flip_engine, energy_model, k=int(args.k))
+        if de is None or not math.isfinite(de):
+            failed += 1
+            continue
+        deltas.append(de)
+
+    if not deltas:
+        print("❌ No valid ΔE samples computed.")
+        return 1
+
+    mean = statistics.fmean(deltas)
+    stdev = statistics.pstdev(deltas) if len(deltas) > 1 else 0.0
+    uphill = sum(1 for x in deltas if x > 0)
+    downhill = sum(1 for x in deltas if x < 0)
+
+    print("\n=== ΔE Summary ===")
+    print(f"Samples: {len(deltas)} (failed: {failed})")
+    print(f"Mean ΔE: {mean:.6f}")
+    print(f"Std  ΔE: {stdev:.6f}")
+    print(f"Uphill:  {uphill/len(deltas):.1%}  (count={uphill})")
+    print(f"Downhill:{downhill/len(deltas):.1%}  (count={downhill})")
+    print(f"Min/Max: {min(deltas):.6f} / {max(deltas):.6f}")
+
+    outdir = Path(args.outdir)
+    tag = "seed" if args.seed_only else "all"
+    out_png = outdir / f"deltaE_hist_{tag}_k{args.k}_n{len(deltas)}.png"
+    plot_histogram(deltas, out_png, f"ΔE distribution ({tag}, k={args.k}, n={len(deltas)})")
+    print(f"\n🖼️ Saved histogram to: {out_png}")
+
+    if args.save_deltas:
+        out_json = outdir / f"deltaE_samples_{tag}_k{args.k}_n{len(deltas)}.json"
+        out_json.parent.mkdir(parents=True, exist_ok=True)
+        out_json.write_text(json.dumps({"tag": tag, "k": args.k, "deltas": deltas}, indent=2), encoding="utf-8")
+        print(f"💾 Saved deltas to: {out_json}")
+
+    return 0
+
 
 if __name__ == "__main__":
-    # Test with different radii
-    for radius in [2, 3, 4]:
-        print(f"\n{'='*60}")
-        print(f"Testing with neighborhood radius = {radius}")
-        print('='*60)
-        results = analyze_proposed_ΔE_distribution_fixed(sample_size=100, neighborhood_radius=radius)
+    raise SystemExit(main())
