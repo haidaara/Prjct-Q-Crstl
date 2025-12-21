@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "experiment": "growth",
+    "obstacle_type": "pores",
+    "density": 0.0,
+    "density_token": "d0p000",
+    "run_id": 16,
+    "input_tiling": "data/processed/penrose_tiling_energy_initialized.json",
+    "config": "configs/phase2_experiments.toml"
+  },
+  "params": {
+    "growth_steps": 5,
+    "mc_steps_per_growth": 10,
+    "temperature": 1.2
+  },
+  "metrics": {
+    "final_energy": 316.1113337182435,
+    "defects_end": 0,
+    "defect_density_end": 0.0,
+    "mean_acceptance_rate": 0.16,
+    "total_new_tiles": 187
+  },
+  "series": {
+    "growth_steps": [
+      {
+        "step": 1,
+        "new_tiles": 29,
+        "total_energy": 318.9626669299136,
+        "acceptance_rate": 0.3,
+        "delta_mean": 3.70255564593243,
+        "delta_std": 4.7048271231883305,
+        "positive_ratio": 0.6666666666666666,
+        "defect_count": 2,
+        "defect_density": 0.016129032258064516
+      },
+      {
+        "step": 2,
+        "new_tiles": 29,
+        "total_energy": 316.51133366871335,
+        "acceptance_rate": 0.1,
+        "delta_mean": -2.4513332612002747,
+        "delta_std": 0.0,
+        "positive_ratio": 0.0,
+        "defect_count": 2,
+        "defect_density": 0.013071895424836602
+      },
+      {
+        "step": 3,
+        "new_tiles": 36,
+        "total_energy": 316.5113337030266,
+        "acceptance_rate": 0.1,
+        "delta_mean": 3.4313217600612234e-08,
+        "delta_std": 0.0,
+        "positive_ratio": 1.0,
+        "defect_count": 2,
+        "defect_density": 0.010582010582010581
+      },
+      {
+        "step": 4,
+        "new_tiles": 44,
+        "total_energy": 316.11133375255673,
+        "acceptance_rate": 0.2,
+        "delta_mean": -0.19999997523493507,
+        "delta_std": 0.19999986615765097,
+        "positive_ratio": 0.0,
+        "defect_count": 0,
+        "defect_density": 0.0
+      },
+      {
+        "step": 5,
+        "new_tiles": 49,
+        "total_energy": 316.1113337182435,
+        "acceptance_rate": 0.1,
+        "delta_mean": -3.4313217600612234e-08,
+        "delta_std": 0.0,
+        "positive_ratio": 0.0,
+        "defect_count": 0,
+        "defect_density": 0.0
+      }
+    ]
+  }
+}

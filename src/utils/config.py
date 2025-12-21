@@ -5,7 +5,7 @@ from typing import Dict, Any
 class ConfigManager:
     """Central configuration management for reproducible research"""
     
-    def __init__(self, config_path: str = "configs/phase1_baseline.toml"):
+    def __init__(self, config_path: str = "configs/phase2_experiments.toml"):
         self.config_path = Path(config_path)
         self._config = self._load_config()
     

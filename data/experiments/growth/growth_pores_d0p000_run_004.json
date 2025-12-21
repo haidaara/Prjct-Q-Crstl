@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "experiment": "growth",
+    "obstacle_type": "pores",
+    "density": 0.0,
+    "density_token": "d0p000",
+    "run_id": 4,
+    "input_tiling": "data/processed/penrose_tiling_energy_initialized.json",
+    "config": "configs/phase2_growth_experiments.toml"
+  },
+  "params": {
+    "growth_steps": 5,
+    "mc_steps_per_growth": 200,
+    "temperature": 1.5
+  },
+  "metrics": {
+    "final_energy": 342.7445733158342,
+    "defects_end": 7,
+    "defect_density_end": 0.03977272727272727,
+    "mean_acceptance_rate": 0.393,
+    "total_new_tiles": 81
+  },
+  "series": {
+    "growth_steps": [
+      {
+        "step": 1,
+        "new_tiles": 23,
+        "total_energy": 330.7771540631909,
+        "acceptance_rate": 0.27,
+        "delta_mean": 0.4244843346495293,
+        "delta_std": 1.6782072928855376,
+        "positive_ratio": 0.6481481481481481,
+        "defect_count": 3,
+        "defect_density": 0.025423728813559324
+      },
+      {
+        "step": 2,
+        "new_tiles": 16,
+        "total_energy": 343.05748857255895,
+        "acceptance_rate": 0.37,
+        "delta_mean": 0.1659504663428108,
+        "delta_std": 1.9521841123703259,
+        "positive_ratio": 0.527027027027027,
+        "defect_count": 7,
+        "defect_density": 0.05223880597014925
+      },
+      {
+        "step": 3,
+        "new_tiles": 15,
+        "total_energy": 334.59544579341986,
+        "acceptance_rate": 0.535,
+        "delta_mean": -0.07908451195457152,
+        "delta_std": 1.9992878311904299,
+        "positive_ratio": 0.4392523364485981,
+        "defect_count": 3,
+        "defect_density": 0.020134228187919462
+      },
+      {
+        "step": 4,
+        "new_tiles": 8,
+        "total_energy": 343.1859041292945,
+        "acceptance_rate": 0.4,
+        "delta_mean": 0.10738072919843553,
+        "delta_std": 1.72708276657317,
+        "positive_ratio": 0.5375,
+        "defect_count": 7,
+        "defect_density": 0.044585987261146494
+      },
+      {
+        "step": 5,
+        "new_tiles": 19,
+        "total_energy": 342.7445733158342,
+        "acceptance_rate": 0.39,
+        "delta_mean": -0.005658087352055456,
+        "delta_std": 1.5231912300109787,
+        "positive_ratio": 0.44871794871794873,
+        "defect_count": 7,
+        "defect_density": 0.03977272727272727
+      }
+    ]
+  }
+}

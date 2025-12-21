@@ -1,0 +1,107 @@
+{
+  "experiment_name": "pores_0.0_20251220_231023",
+  "config": {
+    "project": {
+      "name": "quasi-phason-growth-experiments",
+      "phase": 2,
+      "output_dir": "data/growth_experiments"
+    },
+    "monte_carlo": {
+      "temperature": 1.5,
+      "base_steps": 100,
+      "burn_in_steps": 50
+    },
+    "energy": {
+      "high_energy_penalty": 2.0,
+      "medium_energy_penalty": 1.0,
+      "low_energy_reference": 0.0,
+      "neighbor_interaction_strength": 0.1,
+      "geometric_strain_penalty": 0.2
+    },
+    "growth": {
+      "seed_radius": 5.0,
+      "growth_steps": 5,
+      "mc_steps_per_growth": 200
+    },
+    "obstacles": {
+      "active_type": "pores",
+      "test_densities": [
+        0.0
+      ],
+      "placement_method": "multiple_scalable"
+    },
+    "metrics": {
+      "track_defects": true,
+      "track_energy": true,
+      "track_growth_rate": true,
+      "save_visualization": true,
+      "save_full_state": false,
+      "plot_format": "png",
+      "plot_dpi": 200
+    },
+    "mc": {
+      "temperature": 0.8
+    },
+    "output": {
+      "run_name": "temp_sweep_T0.8"
+    }
+  },
+  "growth_steps": [
+    {
+      "step": 1,
+      "new_tiles": 19,
+      "total_energy": 320.94749201268223,
+      "acceptance_rate": 0.295,
+      "delta_mean": 0.22190664441637575,
+      "delta_std": 1.8092525637702424,
+      "positive_ratio": 0.4745762711864407,
+      "defect_count": 1,
+      "defect_density": 0.008771929824561403
+    },
+    {
+      "step": 2,
+      "new_tiles": 13,
+      "total_energy": 334.2230874705363,
+      "acceptance_rate": 0.36,
+      "delta_mean": 0.18438327024797338,
+      "delta_std": 1.6677054767462247,
+      "positive_ratio": 0.5,
+      "defect_count": 5,
+      "defect_density": 0.03937007874015748
+    },
+    {
+      "step": 3,
+      "new_tiles": 15,
+      "total_energy": 344.46195891807633,
+      "acceptance_rate": 0.39,
+      "delta_mean": 0.13126758266077088,
+      "delta_std": 1.7342950369502035,
+      "positive_ratio": 0.48717948717948717,
+      "defect_count": 8,
+      "defect_density": 0.056338028169014086
+    },
+    {
+      "step": 4,
+      "new_tiles": 14,
+      "total_energy": 344.3376478543493,
+      "acceptance_rate": 0.395,
+      "delta_mean": -0.0015735577686931553,
+      "delta_std": 1.7459228609491233,
+      "positive_ratio": 0.4936708860759494,
+      "defect_count": 3,
+      "defect_density": 0.019230769230769232
+    },
+    {
+      "step": 5,
+      "new_tiles": 14,
+      "total_energy": 342.9046471268287,
+      "acceptance_rate": 0.435,
+      "delta_mean": -0.01647127273012067,
+      "delta_std": 2.032417303373133,
+      "positive_ratio": 0.4827586206896552,
+      "defect_count": 7,
+      "defect_density": 0.041176470588235294
+    }
+  ],
+  "final_tiling": null
+}

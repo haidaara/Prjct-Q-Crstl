@@ -1,150 +1,202 @@
 #!/usr/bin/env python3
-"""
-Physics-focused temperature sweep for healing regime.
-Creates separate config files for each temperature.
-"""
-
-import json
-import subprocess
 import sys
-from pathlib import Path
+import json
+import toml
+import copy
+import re
 import shutil
+import importlib.util
+from pathlib import Path
 
-def create_temp_config(base_config, temperature, output_path):
-    """Create temporary config with specified temperature"""
-    with open(base_config, 'r') as f:
-        config = f.read()
-    
-    # Replace temperature line
-    lines = config.split('\n')
-    new_lines = []
-    for line in lines:
-        if line.strip().startswith('temperature ='):
-            new_lines.append(f'temperature = {temperature}')
-        else:
-            new_lines.append(line)
-    
-    with open(output_path, 'w') as f:
-        f.write('\n'.join(new_lines))
-    
-    print(f"  Created: {output_path.name} (T={temperature})")
 
-def run_temperature_experiment(temperature, base_config_path):
-    """Run experiment at specific temperature"""
-    print(f"\n🌡️  Testing T={temperature}")
-    
-    # Create temp config
-    temp_config = Path(f"configs/temp_T{temperature}.toml")
-    create_temp_config(base_config_path, temperature, temp_config)
-    
-    # Run experiment
-    cmd = [
-        sys.executable, "scripts/run_growth_experiment.py",
-        "--config", str(temp_config),
-        "--name", f"temp_sweep_T{temperature}"
-    ]
-    
-    print(f"  Running: {' '.join(cmd[-3:])}")  # Show only relevant part
-    
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+
+def short_path(p) -> str:
+    p = Path(p)
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-        
-        if result.returncode == 0:
-            print(f"  ✅ Success")
-            # Extract key metrics from output if possible
-            for line in result.stdout.split('\n'):
-                if 'Acceptance rate:' in line:
-                    print(f"  {line.strip()}")
+        return str(p.resolve().relative_to(PROJECT_ROOT.resolve()))
+    except Exception:
+        parts = p.parts
+        return str(Path(*parts[-4:])) if len(parts) > 4 else str(p)
+
+
+def temp_token(T: float) -> str:
+    return "T" + f"{T:.3f}".replace(".", "p")
+
+
+def next_run_id(folder: Path) -> int:
+    nums = []
+    for p in folder.glob("tempsweep_*_run_*.json"):
+        m = re.search(r"_run_(\d+)$", p.stem)
+        if m:
+            nums.append(int(m.group(1)))
+    return (max(nums) + 1) if nums else 1
+
+
+def overwrite_latest(run_file: Path, latest_path: Path) -> None:
+    shutil.copyfile(run_file, latest_path)
+
+
+def load_config(config_path: str) -> dict:
+    cp = Path(config_path)
+    if not cp.is_absolute():
+        cp = PROJECT_ROOT / cp
+    if not cp.exists():
+        raise FileNotFoundError(f"Config file not found: {cp}")
+
+    with open(cp, "r", encoding="utf-8") as f:
+        config = toml.load(f)
+
+    config["_meta_config_path"] = str(config_path)
+    return config
+
+
+def load_growth_runner():
+    growth_path = PROJECT_ROOT / "scripts" / "experiments" / "04_run_growth.py"
+    if not growth_path.exists():
+        raise FileNotFoundError(f"04_run_growth.py not found at: {growth_path}")
+
+    spec = importlib.util.spec_from_file_location("growth04", str(growth_path))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.run_growth_experiment
+
+
+def run_temperature_sweep(config: dict, cli_verbosity=None) -> dict:
+    debug = config.get("debug", {})
+    verbosity = int(cli_verbosity if cli_verbosity is not None else (debug.get("verbosity", 1) or 1))
+    verbosity = 2 if verbosity >= 2 else 1
+
+    progress_every = int(debug.get("progress_every", 1) or 1)
+    progress_every = max(1, progress_every)
+
+    trace_every = int(debug.get("trace_every", 50) or 50)
+    trace_every = max(1, trace_every)
+
+    sweep_cfg = config.get("temp_sweep", {})
+    scenario = str(sweep_cfg.get("scenario", "base"))
+    temps = list(sweep_cfg.get("temperatures", [0.8, 1.0, 1.2, 1.5]))
+
+    out_dir = Path(sweep_cfg.get("output_dir", "data/experiments/temp_sweep"))
+    if not out_dir.is_absolute():
+        out_dir = PROJECT_ROOT / out_dir
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    sweep_run_id = next_run_id(out_dir)
+    sweep_name = f"tempsweep_{scenario}_run_{sweep_run_id:03d}"
+    sweep_file = out_dir / f"{sweep_name}.json"
+    latest_file = out_dir / "latest.json"
+
+    if verbosity >= 1:
+        print("🌡️ TEMPERATURE SWEEP")
+        print("=" * 60)
+        print(f"📥 Base config: {short_path(config.get('_meta_config_path', ''))}")
+        print(f"📤 Output dir : {short_path(out_dir)}")
+        print(f"⚙️  scenario={scenario} temps={temps}")
+        print(f"🔧 debug: verbosity={verbosity}, progress_every={progress_every}, trace_every={trace_every}")
+
+    growth_run = load_growth_runner()
+
+    per_T = []
+    for i, T in enumerate(temps, start=1):
+        T = float(T)
+        t_tok = temp_token(T)
+
+        if verbosity >= 1:
+            print(f"\n🌡️  [{i}/{len(temps)}] Running T={T}")
+
+        cfg = copy.deepcopy(config)
+        cfg.setdefault("monte_carlo", {})
+        cfg["monte_carlo"]["temperature"] = T
+
+        cfg.setdefault("debug", {})
+        cfg["debug"]["verbosity"] = verbosity
+        cfg["debug"]["progress_every"] = progress_every
+        cfg["debug"]["trace_every"] = trace_every
+
+        cfg.setdefault("project", {})
+        cfg["project"]["output_dir"] = str(out_dir)
+
+        t_run_id = next_run_id(out_dir)
+        exp_name = f"tempsweep_{scenario}_{t_tok}_run_{t_run_id:03d}"
+
+        result = growth_run(cfg, exp_name)
+
+        series = result.get("series", {}).get("growth_steps", [])
+        first = series[0] if series else {}
+        last = series[-1] if series else {}
+
+        row = {
+            "temperature": T,
+            "file": f"{exp_name}.json",
+            "mean_acceptance_rate": result.get("metrics", {}).get("mean_acceptance_rate"),
+            "defects_start": first.get("defect_count"),
+            "defects_end": last.get("defect_count"),
+            "final_energy": result.get("metrics", {}).get("final_energy"),
+            "total_new_tiles": result.get("metrics", {}).get("total_new_tiles"),
+        }
+
+        if row["defects_start"] is not None and row["defects_end"] is not None:
+            healed = row["defects_start"] - row["defects_end"]
+            row["healed"] = healed
+            row["healing_efficiency"] = healed / max(1, row["defects_start"])
         else:
-            print(f"  ❌ Failed (code: {result.returncode})")
-            if result.stderr:
-                print(f"  Error: {result.stderr[:200]}")
-    
-    except subprocess.TimeoutExpired:
-        print(f"  ⏰ Timeout after 10 minutes")
-    
-    return temp_config
+            row["healed"] = None
+            row["healing_efficiency"] = None
 
-def analyze_temperature_sweep():
-    """Analyze results from temperature sweep"""
-    print("\n" + "="*60)
-    print("📊 TEMPERATURE SWEEP ANALYSIS")
-    print("="*60)
-    
-    # Find all temp sweep files
-    results_dir = Path("data/growth_experiments")
-    temp_files = list(results_dir.glob("temp_sweep_T*.json"))
-    
-    if not temp_files:
-        print("No temperature sweep results found")
-        return
-    
-    print(f"Found {len(temp_files)} temperature experiments")
-    
-    for file in sorted(temp_files):
-        with open(file, 'r') as f:
-            data = json.load(f)
-        
-        temp = data['config']['monte_carlo']['temperature']
-        steps = data['growth_steps']
-        
-        if steps:
-            # Calculate average metrics
-            acceptances = [s['acceptance_rate'] for s in steps if 'acceptance_rate' in s]
-            defects = [s['defect_count'] for s in steps if 'defect_count' in s]
-            
-            if acceptances and defects:
-                avg_acceptance = sum(acceptances) / len(acceptances)
-                avg_defects = sum(defects) / len(defects)
-                
-                print(f"\nT={temp}:")
-                print(f"  Avg acceptance: {avg_acceptance:.1%}")
-                print(f"  Avg defects: {avg_defects:.1f}")
-                
-                # Check defect trend
-                if len(defects) >= 3:
-                    trend = "↑" if defects[-1] > defects[0] else "↓" if defects[-1] < defects[0] else "→"
-                    print(f"  Defect trend: {trend} ({defects[0]} → {defects[-1]})")
+        per_T.append(row)
 
-def main():
-    """Main temperature sweep"""
-    print("🌡️  TEMPERATURE SWEEP FOR HEALING REGIME")
-    print("="*60)
-    
-    # Base config
-    base_config = Path("configs/phase2_growth_experiments.toml")
-    if not base_config.exists():
-        print(f"❌ Base config not found: {base_config}")
-        return
-    
-    # Test temperatures
-    temperatures = [0.8, 1.0, 1.2, 1.5]
-    print(f"Testing temperatures: {temperatures}")
-    print(f"Base config: {base_config}")
-    
-    # Run experiments
-    temp_configs = []
-    for T in temperatures:
-        config_file = run_temperature_experiment(T, base_config)
-        temp_configs.append(config_file)
-    
-    # Analyze results
-    analyze_temperature_sweep()
-    
-    # Cleanup temp configs
-    print("\n🧹 Cleaning up temporary configs...")
-    for config in temp_configs:
-        if config.exists():
-            config.unlink()
-            print(f"  Removed: {config.name}")
-    
-    print("\n🎯 NEXT STEPS:")
-    print("1. Choose temperature with:")
-    print("   - Acceptance ~15-25%")
-    print("   - Defects stable or decreasing")
-    print("   - Some uphill accepts (positive_ratio > 0.1)")
-    print("2. Run control (no MC) at chosen T")
-    print("3. Test obstacles at chosen T")
+        if verbosity >= 1:
+            print(
+                f"   ↳ file={row['file']}  acc_mean={row['mean_acceptance_rate']}  "
+                f"defects={row['defects_start']}→{row['defects_end']}  "
+                f"E_final={row['final_energy']}"
+            )
+
+    sweep_out = {
+        "meta": {
+            "experiment": "temp_sweep",
+            "scenario": scenario,
+            "run_id": sweep_run_id,
+            "config": short_path(config.get("_meta_config_path", "")),
+            "output_dir": short_path(out_dir),
+        },
+        "params": {
+            "temperatures": temps,
+            "progress_every": progress_every,
+            "trace_every": trace_every,
+        },
+        "series": {
+            "by_temperature": per_T
+        }
+    }
+
+    with open(sweep_file, "w", encoding="utf-8") as f:
+        json.dump(sweep_out, f, indent=2)
+
+    overwrite_latest(sweep_file, latest_file)
+
+    if verbosity >= 1:
+        print("\n✅ Temperature sweep complete!")
+        print(f"📊 Summary saved to: {short_path(sweep_file)}")
+
+    return sweep_out
+
+
+def main() -> int:
+    import argparse
+    ap = argparse.ArgumentParser(description="Run temperature sweep (calls 04 per temperature)")
+    ap.add_argument("--config", "-c", default="configs/phase2_experiments.toml")
+    ap.add_argument("--verbosity", type=int, choices=[1, 2], help="Override debug verbosity (1 or 2)")
+    args = ap.parse_args()
+
+    config = load_config(args.config)
+    run_temperature_sweep(config, args.verbosity)
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

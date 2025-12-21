@@ -1,0 +1,67 @@
+{
+  "meta": {
+    "experiment": "temp_sweep",
+    "scenario": "base",
+    "run_id": 1,
+    "config": "configs/phase2_growth_experiments.toml",
+    "output_dir": "/mnt/c/Users/randa chames/Downloads/aberration-master/interns_&_project_&_conf/Prjct_Q-Crstl/quasi-phason/data/experiments/temp_sweep"
+  },
+  "params": {
+    "temperatures": [
+      0.8,
+      1.0,
+      1.2,
+      1.5
+    ],
+    "progress_every": 1,
+    "trace_every": 50
+  },
+  "series": {
+    "by_temperature": [
+      {
+        "temperature": 0.8,
+        "file": "tempsweep_base_T0p800_run_002.json",
+        "mean_acceptance_rate": 0.125,
+        "defects_start": 1,
+        "defects_end": 1,
+        "final_energy": 318.8618403063962,
+        "total_new_tiles": 129,
+        "healed": 0,
+        "healing_efficiency": 0.0
+      },
+      {
+        "temperature": 1.0,
+        "file": "tempsweep_base_T1p000_run_003.json",
+        "mean_acceptance_rate": 0.147,
+        "defects_start": 0,
+        "defects_end": 3,
+        "final_energy": 310.9474559868529,
+        "total_new_tiles": 120,
+        "healed": -3,
+        "healing_efficiency": -3.0
+      },
+      {
+        "temperature": 1.2,
+        "file": "tempsweep_base_T1p200_run_004.json",
+        "mean_acceptance_rate": 0.25,
+        "defects_start": 2,
+        "defects_end": 6,
+        "final_energy": 324.2598593057479,
+        "total_new_tiles": 95,
+        "healed": -4,
+        "healing_efficiency": -2.0
+      },
+      {
+        "temperature": 1.5,
+        "file": "tempsweep_base_T1p500_run_005.json",
+        "mean_acceptance_rate": 0.314,
+        "defects_start": 2,
+        "defects_end": 8,
+        "final_energy": 335.848903406614,
+        "total_new_tiles": 104,
+        "healed": -6,
+        "healing_efficiency": -3.0
+      }
+    ]
+  }
+}

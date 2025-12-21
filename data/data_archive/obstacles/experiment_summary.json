@@ -1,0 +1,253 @@
+{
+  "duration_seconds": 98.70113134384155,
+  "total_configurations": 12,
+  "configurations": [
+    {
+      "name": "pores_density_0.005",
+      "file": "data/obstacles/pores/pores_density_0.005.json",
+      "visualization": "data/obstacles/visualizations/pores_density_0.005.png",
+      "metadata": {
+        "type": "pores",
+        "density": 0.005,
+        "positions": [
+          [
+            30.0,
+            30.0
+          ]
+        ],
+        "radii": [
+          5.0
+        ],
+        "positions_semantics": "centers for pores; unused for fixed_defects",
+        "removed_count": 95,
+        "immobile_count": 0,
+        "active_tiles": 4311
+      }
+    },
+    {
+      "name": "fixed_defects_density_0.005",
+      "file": "data/obstacles/fixed_defects/fixed_defects_density_0.005.json",
+      "visualization": "data/obstacles/visualizations/fixed_defects_density_0.005.png",
+      "metadata": {
+        "type": "fixed_defects",
+        "density": 0.005,
+        "positions": [],
+        "radii": null,
+        "positions_semantics": "centers for pores; unused for fixed_defects",
+        "removed_count": 0,
+        "immobile_count": 22,
+        "active_tiles": 4406
+      }
+    },
+    {
+      "name": "pores_density_0.01",
+      "file": "data/obstacles/pores/pores_density_0.01.json",
+      "visualization": "data/obstacles/visualizations/pores_density_0.01.png",
+      "metadata": {
+        "type": "pores",
+        "density": 0.01,
+        "positions": [
+          [
+            30.0,
+            30.0
+          ]
+        ],
+        "radii": [
+          5.0
+        ],
+        "positions_semantics": "centers for pores; unused for fixed_defects",
+        "removed_count": 95,
+        "immobile_count": 0,
+        "active_tiles": 4311
+      }
+    },
+    {
+      "name": "fixed_defects_density_0.01",
+      "file": "data/obstacles/fixed_defects/fixed_defects_density_0.01.json",
+      "visualization": "data/obstacles/visualizations/fixed_defects_density_0.01.png",
+      "metadata": {
+        "type": "fixed_defects",
+        "density": 0.01,
+        "positions": [],
+        "radii": null,
+        "positions_semantics": "centers for pores; unused for fixed_defects",
+        "removed_count": 0,
+        "immobile_count": 44,
+        "active_tiles": 4406
+      }
+    },
+    {
+      "name": "pores_density_0.02",
+      "file": "data/obstacles/pores/pores_density_0.02.json",
+      "visualization": "data/obstacles/visualizations/pores_density_0.02.png",
+      "metadata": {
+        "type": "pores",
+        "density": 0.02,
+        "positions": [
+          [
+            30.0,
+            30.0
+          ]
+        ],
+        "radii": [
+          5.0
+        ],
+        "positions_semantics": "centers for pores; unused for fixed_defects",
+        "removed_count": 95,
+        "immobile_count": 0,
+        "active_tiles": 4311
+      }
+    },
+    {
+      "name": "fixed_defects_density_0.02",
+      "file": "data/obstacles/fixed_defects/fixed_defects_density_0.02.json",
+      "visualization": "data/obstacles/visualizations/fixed_defects_density_0.02.png",
+      "metadata": {
+        "type": "fixed_defects",
+        "density": 0.02,
+        "positions": [],
+        "radii": null,
+        "positions_semantics": "centers for pores; unused for fixed_defects",
+        "removed_count": 0,
+        "immobile_count": 88,
+        "active_tiles": 4406
+      }
+    },
+    {
+      "name": "pores_density_0.03",
+      "file": "data/obstacles/pores/pores_density_0.03.json",
+      "visualization": "data/obstacles/visualizations/pores_density_0.03.png",
+      "metadata": {
+        "type": "pores",
+        "density": 0.03,
+        "positions": [
+          [
+            30.0,
+            30.0
+          ]
+        ],
+        "radii": [
+          5.0
+        ],
+        "positions_semantics": "centers for pores; unused for fixed_defects",
+        "removed_count": 95,
+        "immobile_count": 0,
+        "active_tiles": 4311
+      }
+    },
+    {
+      "name": "fixed_defects_density_0.03",
+      "file": "data/obstacles/fixed_defects/fixed_defects_density_0.03.json",
+      "visualization": "data/obstacles/visualizations/fixed_defects_density_0.03.png",
+      "metadata": {
+        "type": "fixed_defects",
+        "density": 0.03,
+        "positions": [],
+        "radii": null,
+        "positions_semantics": "centers for pores; unused for fixed_defects",
+        "removed_count": 0,
+        "immobile_count": 132,
+        "active_tiles": 4406
+      }
+    },
+    {
+      "name": "pores_density_0.05",
+      "file": "data/obstacles/pores/pores_density_0.05.json",
+      "visualization": "data/obstacles/visualizations/pores_density_0.05.png",
+      "metadata": {
+        "type": "pores",
+        "density": 0.05,
+        "positions": [
+          [
+            20.0,
+            20.0
+          ],
+          [
+            40.0,
+            20.0
+          ]
+        ],
+        "radii": [
+          5.0,
+          5.0
+        ],
+        "positions_semantics": "centers for pores; unused for fixed_defects",
+        "removed_count": 193,
+        "immobile_count": 0,
+        "active_tiles": 4213
+      }
+    },
+    {
+      "name": "fixed_defects_density_0.05",
+      "file": "data/obstacles/fixed_defects/fixed_defects_density_0.05.json",
+      "visualization": "data/obstacles/visualizations/fixed_defects_density_0.05.png",
+      "metadata": {
+        "type": "fixed_defects",
+        "density": 0.05,
+        "positions": [],
+        "radii": null,
+        "positions_semantics": "centers for pores; unused for fixed_defects",
+        "removed_count": 0,
+        "immobile_count": 220,
+        "active_tiles": 4406
+      }
+    },
+    {
+      "name": "pores_density_0.1",
+      "file": "data/obstacles/pores/pores_density_0.1.json",
+      "visualization": "data/obstacles/visualizations/pores_density_0.1.png",
+      "metadata": {
+        "type": "pores",
+        "density": 0.1,
+        "positions": [
+          [
+            15.0,
+            15.0
+          ],
+          [
+            30.0,
+            15.0
+          ],
+          [
+            45.0,
+            15.0
+          ],
+          [
+            15.0,
+            30.0
+          ],
+          [
+            30.0,
+            30.0
+          ]
+        ],
+        "radii": [
+          5.0,
+          5.0,
+          5.0,
+          5.0,
+          5.0
+        ],
+        "positions_semantics": "centers for pores; unused for fixed_defects",
+        "removed_count": 481,
+        "immobile_count": 0,
+        "active_tiles": 3925
+      }
+    },
+    {
+      "name": "fixed_defects_density_0.1",
+      "file": "data/obstacles/fixed_defects/fixed_defects_density_0.1.json",
+      "visualization": "data/obstacles/visualizations/fixed_defects_density_0.1.png",
+      "metadata": {
+        "type": "fixed_defects",
+        "density": 0.1,
+        "positions": [],
+        "radii": null,
+        "positions_semantics": "centers for pores; unused for fixed_defects",
+        "removed_count": 0,
+        "immobile_count": 441,
+        "active_tiles": 4406
+      }
+    }
+  ]
+}

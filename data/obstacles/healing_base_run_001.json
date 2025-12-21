@@ -1,0 +1,28 @@
+{
+  "meta": {
+    "experiment": "healing",
+    "scenario": "base",
+    "run_id": 1,
+    "input_tiling": "data/raw/penrose_tiling.json",
+    "params": {
+      "seed_radius": 5.0,
+      "defects_to_create": 15,
+      "defect_energy_threshold": 1.5,
+      "temperature": 0.1,
+      "base_steps": 100,
+      "sweep_steps": 10000,
+      "neighborhood_radius": 3,
+      "verify_energy": false
+    }
+  },
+  "results": {
+    "defects_start": 6,
+    "defects_end": 1,
+    "healing_efficiency": 0.8333333333333334,
+    "max_drift": 0.0,
+    "acceptance_rate": 0.0681,
+    "delta_mean": -0.04549435499519767,
+    "delta_std": 0.5204495024609236,
+    "positive_ratio": 0.4889867841409692
+  }
+}

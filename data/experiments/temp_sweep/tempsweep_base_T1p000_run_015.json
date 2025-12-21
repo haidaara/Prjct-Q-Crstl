@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "experiment": "growth",
+    "obstacle_type": "pores",
+    "density": 0.0,
+    "density_token": "d0p000",
+    "run_id": 15,
+    "input_tiling": "data/processed/penrose_tiling_energy_initialized.json",
+    "config": "configs/phase2_experiments.toml"
+  },
+  "params": {
+    "growth_steps": 5,
+    "mc_steps_per_growth": 10,
+    "temperature": 1.0
+  },
+  "metrics": {
+    "final_energy": 309.61699994389517,
+    "defects_end": 0,
+    "defect_density_end": 0.0,
+    "mean_acceptance_rate": 0.04,
+    "total_new_tiles": 195
+  },
+  "series": {
+    "growth_steps": [
+      {
+        "step": 1,
+        "new_tiles": 27,
+        "total_energy": 309.61699994389517,
+        "acceptance_rate": 0.2,
+        "delta_mean": 0.8809999758894604,
+        "delta_std": 1.3809999499223387,
+        "positive_ratio": 0.5,
+        "defect_count": 0,
+        "defect_density": 0.0
+      },
+      {
+        "step": 2,
+        "new_tiles": 33,
+        "total_energy": 309.61699994389517,
+        "acceptance_rate": 0.0,
+        "delta_mean": 0.0,
+        "delta_std": 0.0,
+        "positive_ratio": 0.0,
+        "defect_count": 0,
+        "defect_density": 0.0
+      },
+      {
+        "step": 3,
+        "new_tiles": 40,
+        "total_energy": 309.61699994389517,
+        "acceptance_rate": 0.0,
+        "delta_mean": 0.0,
+        "delta_std": 0.0,
+        "positive_ratio": 0.0,
+        "defect_count": 0,
+        "defect_density": 0.0
+      },
+      {
+        "step": 4,
+        "new_tiles": 44,
+        "total_energy": 309.61699994389517,
+        "acceptance_rate": 0.0,
+        "delta_mean": 0.0,
+        "delta_std": 0.0,
+        "positive_ratio": 0.0,
+        "defect_count": 0,
+        "defect_density": 0.0
+      },
+      {
+        "step": 5,
+        "new_tiles": 51,
+        "total_energy": 309.61699994389517,
+        "acceptance_rate": 0.0,
+        "delta_mean": 0.0,
+        "delta_std": 0.0,
+        "positive_ratio": 0.0,
+        "defect_count": 0,
+        "defect_density": 0.0
+      }
+    ]
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "timestamp": "2025-12-13T21:43:08.219208",
+  "tiling_reference": {
+    "total_tiles": 4406,
+    "active_tiles": 4406,
+    "pores_excluded": 0,
+    "thick_rhombus_count": 2718,
+    "thin_rhombus_count": 1688
+  },
+  "vertex_classification_distribution": {
+    "LOW_ENERGY": 4313,
+    "MEDIUM_ENERGY": 70,
+    "HIGH_ENERGY": 23
+  },
+  "coordination_number_distribution": {
+    "2": 103,
+    "3": 108,
+    "1": 12,
+    "4": 4183
+  },
+  "energy_landscape_statistics": {
+    "total_configurational_energy": 307.85499999209543,
+    "average_energy_per_tile": 0.06987176577215057,
+    "energy_standard_deviation": 0.19682852221358182,
+    "min_energy_observed": 0.0,
+    "max_energy_observed": 2.135333333333333,
+    "energy_variance": 0.03874146715678247,
+    "energy_skewness": 7.727031528870751,
+    "energy_kurtosis": 67.40278609347445
+  },
+  "coordination_quality_metrics": {
+    "has_isolated_tiles": false,
+    "percentage_single_neighbor": 0.2723558783477077,
+    "percentage_boundary_tiles": 2.3377212891511574,
+    "percentage_typical_coordination": 97.38992283250113,
+    "coordination_distribution_quality": "GOOD"
+  },
+  "energy_landscape_quality": {
+    "percentage_low_energy": 97.88924194280526,
+    "energy_landscape_ruggedness": 2.816996536950503,
+    "energy_range_adequacy": "GOOD"
+  }
+}

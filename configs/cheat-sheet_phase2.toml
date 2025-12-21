@@ -1,0 +1,142 @@
+# =====================================================================
+# ✅ CHEAT-SHEET (FIELD VALUES / WHAT TO USE)
+# Put this at the BOTTOM of configs/phase2_experiments.toml
+# It lists every key you use (01→05) with common value choices.
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# [project]  (metadata + default output)
+# ---------------------------------------------------------------------
+# name = "quasi-phason"                  # Any string label
+# phase = 2                              # 1, 2, ... (your project stage)
+# output_dir = "data/experiments/growth" # Usually "data/experiments/<experiment>"
+# random_seed = 42                       # Any int; set for reproducibility
+
+# ---------------------------------------------------------------------
+# [tiling]  (01_generate_tiling)
+# ---------------------------------------------------------------------
+# method = "de_bruijn_pentagrid"          # Use what your generator implements
+# window_origin = [0.0, 0.0]              # Usually [0,0]
+# window_size = [60.0, 60.0]              # 40–120 typical; larger = more tiles
+# offsets = [0.0625, 0.1875, 0.34375, 0.15625, 0.25]  # Keep your verified set
+# seed = 42                               # Any int; for generation randomness (if used)
+
+# ---------------------------------------------------------------------
+# [exports]  (01/02 outputs)
+# ---------------------------------------------------------------------
+# format = "json"                         # "json" (keep)
+# include_adjacency = true                # true recommended; false if you want smaller raw
+# save_lattice_coords = true              # true if your analysis needs lattice/perp-space later
+# tiling_json = "data/raw/penrose_tiling.json"  # Raw geometry output path
+# output_dir = "data/obstacles"           # Where obstacle variants go
+
+# ---------------------------------------------------------------------
+# [visualization]  (01/02 plots)
+# ---------------------------------------------------------------------
+# show_tile_ids = false                   # false normal; true only when debugging topology
+# show_plots = false                      # false batch/HPC; true local interactive
+# save_plots = true                       # true recommended for reproducibility
+# plot_dpi = 150                          # 150 quick; 300 good; 600 publication png
+# figsize = [12, 12]                      # [8,8] quick; [12,12] nice; [16,16] large figures
+#
+# [visualization.tile_colors]
+# THICK = "#e74c3c"                       # Any hex color
+# THIN  = "#3498db"
+#
+# [visualization.obstacle_colors]
+# pore = "#2c3e50"
+# fixed_defect = "#f39c13"
+
+# ---------------------------------------------------------------------
+# [energy]  (Widom-inspired params used in 03/04)
+# ---------------------------------------------------------------------
+# high_energy_penalty = 2.0               # Typical 1.5–4.0 (higher = harsher defect penalty)
+# medium_energy_penalty = 1.0             # Typical 0.5–2.0
+# low_energy_reference = 0.0              # Usually 0.0
+# neighbor_interaction_strength = 0.1     # Typical 0.0–0.5 (0 disables neighbor coupling)
+# geometric_strain_penalty = 0.2          # Typical 0.0–1.0
+
+# ---------------------------------------------------------------------
+# [monte_carlo]  (03/04/05)
+# NOTE: 03 uses steps + neighborhood_radius; 04 uses temperature/base_steps; 05 overrides temperature.
+# ---------------------------------------------------------------------
+# temperature = 0.8                       # 0.1–0.5 conservative; ~0.8 good healing; 1.0–1.5 more random/melting
+# base_steps = 100                        # 50 quick; 100 normal; 200+ more stable (if used)
+# burn_in_steps = 50                      # 0 none; 25–100 typical
+# steps = 200                             # (03) 100 quick; 200 normal; 500–2000 for better stats
+# neighborhood_radius = 3                 # 2 faster/local; 3 normal; 4 broader/more stable (slower)
+# verify_energy = false                   # false normal; true only for validation/debug (slow)
+
+# ---------------------------------------------------------------------
+# [mc] (legacy alias)
+# Use if any old code reads [mc]. Keep values aligned with [monte_carlo].
+# ---------------------------------------------------------------------
+# temperature = 0.8
+# steps = 200
+# neighborhood_radius = 4
+# verify_energy = false
+
+# ---------------------------------------------------------------------
+# [obstacles]  (02 generator + 04 selection)
+# ---------------------------------------------------------------------
+# types = ["pores", "fixed_defects"]      # Any subset of supported types
+# placement = "multiple_scalable"         # Must match implementation
+# density_sweep = [0.005, 0.01, 0.02]     # (02) small list for tuning; expand for production sweeps
+# min_radius = 2.0                        # 1–3 small pores; 4–10 larger obstacles
+# max_radius = 8.0                        # Keep > min_radius
+# defect_cluster_size = 1                 # 1 single tile; 2–5 clustered defects (if supported)
+# min_separation = 2.0                    # 0 allow clustering; 2–5 avoid overlap/too-close obstacles
+# output_dir = "data/obstacles"           # Where obstacle JSON files are saved (02)
+#
+# active_type = "pores"                   # (04) "pores" or "fixed_defects"
+# test_densities = [0.0]                  # (04) [0.0]=baseline; [0.01] loads obstacle file; multiple ok but 04 uses first
+# placement_method = "multiple_scalable"  # Tag for naming/meta consistency
+
+# ---------------------------------------------------------------------
+# [growth]  (04 growth experiment)
+# ---------------------------------------------------------------------
+# tiling_path = "data/processed/penrose_tiling_energy_initialized.json" # Canonical input for experiments
+# seed_radius = 5.0                       # 3–6 quick; 8–12 more stable start but slower
+# growth_steps = 5                        # 3 quick test; 5–10 normal; 20–50 production
+# mc_steps_per_growth = 200               # 50 quick; 200 normal; 500+ production relaxation
+# healing_radius = 3.0                    # If used: 2 local; 3–5 wider healing near edge
+
+# ---------------------------------------------------------------------
+# [healing]  (03 healing experiment)
+# ---------------------------------------------------------------------
+# scenario = "base"                       # Any label used in filenames/meta
+# tiling_path = "data/processed/penrose_tiling_energy_initialized.json"
+# output_dir = "data/experiments/healing"
+# seed_radius = 10.0                      # 6–10 typical; larger includes more vertices
+# num_defects = 15                        # 5–20 typical; increase for stress tests
+# defect_threshold = 1.5                  # Keep your validated threshold unless changing defect definition
+
+# ---------------------------------------------------------------------
+# [temp_sweep]  (05 temperature sweep)
+# ---------------------------------------------------------------------
+# output_dir = "data/experiments/temp_sweep"  # Where sweep summary + latest.json go
+# temperatures = [0.4, 0.6, 0.8, 1.0, 1.2, 1.5] # 3–5 points quick; 8–15 smooth curve
+
+# ---------------------------------------------------------------------
+# [metrics]  (saving policy)
+# ---------------------------------------------------------------------
+# track_defects = true                    # true recommended if you care about healing outcomes
+# track_energy = true                     # true recommended for stability checks
+# save_full_state = false                 # false default (small); true only for deep analysis/paper runs
+# save_visualization = true               # true if you want plots; false for HPC/batch speed
+# plot_format = "png"                     # "png" for iteration; "pdf" for publication
+# plot_dpi = 200                          # 150–250 iteration; 300–600 publication png
+
+# ---------------------------------------------------------------------
+# [debug]  (printing policy)
+# ---------------------------------------------------------------------
+# verbosity = 1                           # 1 progress; 2 deep MC trace
+# progress_every = 1                      # 1 print every step; 5–10 reduce spam in long runs
+# trace_every = 50                        # (verbosity=2) 1 full trace; 10–50 readable; 100+ quiet
+
+# ---------------------------------------------------------------------
+# [validation]  (validators / obstacle checks)
+# ---------------------------------------------------------------------
+# check_overlaps = true                   # true recommended for obstacle generation
+# verify_counts = true                    # true to ensure density/count match expectations
+# max_density = 0.5                       # Safety cap; keep <=0.5

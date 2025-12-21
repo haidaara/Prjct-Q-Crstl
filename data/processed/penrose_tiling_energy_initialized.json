@@ -27,7 +27,7 @@
       "4": 4183
     },
     "energy_model": "WidomInspiredQuasicrystalHamiltonian",
-    "energy_initialization_timestamp": "2025-12-13T21:43:08.219208",
+    "energy_initialization_timestamp": "2025-12-22T00:08:51.011112",
     "simulation_ready": true,
     "next_phases": [
       "monte_carlo_relaxation",

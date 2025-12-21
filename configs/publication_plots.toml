@@ -1,0 +1,27 @@
+# configs/publication_plots.toml
+# =====================================================================
+# 📊 PUBLICATION / ANALYSIS CONFIG
+# Only aesthetics + analysis settings (never physics).
+# =====================================================================
+
+[publication]
+format = "pdf"                         # Output format for final figures
+dpi = 600                              # Publication DPI (for png; pdf ignores dpi mostly)
+transparent_background = false         # True for overlays in LaTeX
+tight_layout = true                    # Reduce whitespace/margins
+
+[fonts]
+family = "DejaVu Sans"                 # Font family (safe default on most systems)
+base_size = 10                         # Base font size
+title_size = 12                        # Title font size
+label_size = 10                        # Axis label font size
+
+[lines]
+line_width = 1.2                       # Line thickness for curves
+marker_size = 4                        # Marker size for scatter points
+
+[figure]
+default_figsize = [6.5, 4.0]           # Default figure size in inches [W, H]
+
+[paths]
+output_dir = "data/publication/plots"  # Where publication plots are written

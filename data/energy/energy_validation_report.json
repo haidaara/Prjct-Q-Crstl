@@ -1,8 +1,8 @@
 {
-  "timestamp": "2025-12-13T21:43:08.219208",
+  "timestamp": "2025-12-22T00:08:51.011112",
   "energy_computation_performance": {
-    "total_computation_time_seconds": 2.159600257873535,
-    "tiles_processed_per_second": 2040.1923846491839,
+    "total_computation_time_seconds": 1.0072953701019287,
+    "tiles_processed_per_second": 4374.0893989755505,
     "computation_complexity": "O(n)",
     "memory_efficiency": "HIGH"
   },
