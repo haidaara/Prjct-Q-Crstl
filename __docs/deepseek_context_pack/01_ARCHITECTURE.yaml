@@ -1,0 +1,569 @@
+version: 1
+last_updated: '2025-12-26'
+project_identity:
+  repo_name: quasi-phason
+  project_definition: Phason Dynamics in Quasicrystal Growth
+  core_research_question: How do phason dynamics enable defect-free growth around obstacles in quasicrystals, and
+    can we model this healing process as an emergent many-body system?
+  phase_now: 1
+  deterministic_baseline: true
+  primary_outputs:
+  - tiling state JSON with adjacency + energy fields
+  - obstacle datasets (pores + fixed defects) across density sweep
+  - healing/growth/temperature experiment result JSONs + plots
+  - validation reports
+semantic_tags:
+  '[#TILINGS-CORE]': Penrose tiling generation + topology
+  '[#OBSTACLES]': Obstacle generation/validation/visualization (pores + fixed defects)
+  '[#ENERGY-CALC]': Vertex classification + Widom-inspired energy model
+  '[#FLIP-ENGINE]': Phason flip detection + application
+  '[#MC-HEALING]': Monte Carlo healing / annealing
+  '[#GROWTH]': Growth simulation around obstacles
+  '[#VALIDATION]': Validation scripts + contract checks
+  '[#VIZ]': Plotting and visualization utilities
+  '[#ENTRYPOINTS]': Experiment entrypoint scripts
+  '[#DEV-TOOLS]': Diagnostics and one-off debugging tools
+  '[#UTILS]': Config and script utilities
+config_files:
+- path: phase2_experiments.toml
+  purpose: Main experiment/config contract (Phase 2 settings referenced by scripts)
+- path: publication_plots.toml
+  purpose: Plot/export settings for publication-style figures
+- path: cheat-sheet_phase2.toml
+  purpose: Human cheat-sheet of config options (comment-only)
+pipeline_stages:
+- id: generate_raw_tiling
+  tag: '[#ENTRYPOINTS]'
+  script: experiments/01_generate_tiling.py
+  config: phase2_experiments.toml
+  inputs: []
+  outputs:
+  - data/raw/penrose_tiling.json
+  success_criteria:
+  - tiling JSON exists
+  - 'contains keys: tiles, adjacency_graph, metadata'
+  - validation/validate_tiling.py passes
+- id: prepare_processed_tiling_energy_init
+  tag: '[#ENTRYPOINTS]'
+  script: experiments/01_prepare_processed_tiling.py
+  config: phase2_experiments.toml
+  inputs:
+  - data/raw/penrose_tiling.json
+  outputs:
+  - data/processed/penrose_tiling_energy_initialized.json
+  - data/processed/energy_parameters.json
+  - data/processed/vertex_statistics.json
+  - data/processed/energy_validation.json
+  success_criteria:
+  - all tiles have vertex_class and local_energy
+  - removed tiles contribute 0 to energy
+  - validation/validate_energy.py passes
+- id: generate_obstacles
+  tag: '[#ENTRYPOINTS]'
+  script: experiments/02_generate_obstacles.py
+  config: phase2_experiments.toml
+  inputs:
+  - data/processed/penrose_tiling_energy_initialized.json
+  outputs:
+  - data/obstacles/pores/*.json
+  - data/obstacles/fixed_defects/*.json
+  - data/obstacles/*/*.png
+  success_criteria:
+  - validation/validate_obstacles.py passes
+  - no overlaps beyond policy
+  - removed tiles have neighbors blanked (if required by policy)
+- id: run_healing_experiment
+  tag: '[#ENTRYPOINTS]'
+  script: experiments/03_run_healing_test.py
+  config: phase2_experiments.toml
+  inputs:
+  - data/processed/penrose_tiling_energy_initialized.json
+  - optional obstacles JSON
+  outputs:
+  - data/experiments/healing/*.json
+  - data/experiments/healing/*.png
+  success_criteria:
+  - energy drift stays bounded when verify_energy=True
+  - defect metrics trend improves across annealing schedule
+- id: run_growth_experiment
+  tag: '[#ENTRYPOINTS]'
+  script: experiments/04_run_growth.py
+  config: phase2_experiments.toml
+  inputs:
+  - data/processed/penrose_tiling_energy_initialized.json
+  - data/obstacles/**/*.json
+  outputs:
+  - data/experiments/growth/*.json
+  - data/experiments/growth/*.png
+  success_criteria:
+  - growth respects pores (removed) and fixed defects (immobile)
+  - validation/visualize_growth_fidelity.py produces sane plots
+- id: temperature_sweep
+  tag: '[#ENTRYPOINTS]'
+  script: experiments/05_temperature_sweep.py
+  config: phase2_experiments.toml
+  inputs:
+  - data/processed/penrose_tiling_energy_initialized.json
+  outputs:
+  - data/experiments/temp_sweep/*.json
+  - data/experiments/temp_sweep/*.png
+  success_criteria:
+  - produces summary results across temperatures
+  - acceptance/defects/energy trends consistent
+- id: phase2_batch_runner
+  tag: '[#ENTRYPOINTS]'
+  script: experiments/06_run_phase2_batch.py
+  config: phase2_experiments.toml
+  inputs:
+  - data/obstacles/pores/*.json
+  - data/processed/penrose_tiling_energy_initialized.json
+  outputs:
+  - data/experiments/growth/batch_summary.json
+  success_criteria:
+  - batch_summary aggregates runs with stable schema
+- id: analysis_and_plots
+  tag: '[#VIZ]'
+  script: analysis/*.py
+  config: publication_plots.toml
+  inputs:
+  - data/experiments/**/**/*.json
+  outputs:
+  - figures/ or saved plots alongside results (depending on config)
+  success_criteria:
+  - plots render without errors
+  - metrics are interpretable and reproducible
+- id: validation_suite
+  tag: '[#VALIDATION]'
+  script: validation/run_all.py
+  config: null
+  inputs:
+  - data/raw/*
+  - data/processed/*
+  - data/obstacles/*
+  outputs:
+  - stdout + optional reports
+  success_criteria:
+  - all validation scripts pass
+components:
+- id: tilings
+  tag: '[#TILINGS-CORE]'
+  purpose: Generate Penrose P3 tilings and compute topology/adacency/metadata.
+  modules:
+  - src/tilings/penrose_p3.py
+  entrypoints:
+  - experiments/01_generate_tiling.py
+- id: obstacles
+  tag: '[#OBSTACLES]'
+  purpose: Create pores (removed tiles) and fixed defects (immobile tiles) with deterministic placement and validation.
+  modules:
+  - src/obstacle/obstacle_config.py
+  - src/obstacle/obstacle_creator.py
+  - src/obstacle/obstacle_visualizer.py
+  entrypoints:
+  - experiments/02_generate_obstacles.py
+- id: energy
+  tag: '[#ENERGY-CALC]'
+  purpose: Classify vertex environments and compute Widom-inspired local/total energies; attach to tiling state.
+  modules:
+  - src/energy/combinatorial_classifier.py
+  - src/energy/energy_logger.py
+  - src/energy/widom_inspired_energy.py
+  entrypoints:
+  - experiments/01_prepare_processed_tiling.py
+  - validation/validate_energy.py
+- id: simulation_flip
+  tag: '[#FLIP-ENGINE]'
+  purpose: Detect flippable clusters and apply phason flips safely.
+  modules:
+  - src/simulation/flip_engine.py
+  entrypoints: []
+- id: simulation_mc
+  tag: '[#MC-HEALING]'
+  purpose: Monte Carlo sweeps over flips, temperature schedules, healing metrics.
+  modules:
+  - src/simulation/mc_engine.py
+  entrypoints:
+  - experiments/03_run_healing_test.py
+  - experiments/05_temperature_sweep.py
+- id: simulation_growth
+  tag: '[#GROWTH]'
+  purpose: Growth engine around obstacles, optionally interleaved with MC healing.
+  modules:
+  - src/simulation/growth_engine.py
+  entrypoints:
+  - experiments/04_run_growth.py
+  - validation/visualize_growth_fidelity.py
+- id: viz
+  tag: '[#VIZ]'
+  purpose: Visualization utilities and plotting for states and metrics.
+  modules:
+  - src/viz/plotters.py
+  - src/viz/static_plots.py
+  - src/viz/utils.py
+  - analysis/analyze_growth_results.py
+  - analysis/analyze_temperature_results.py
+  - analysis/plot_energy_landscape.py
+  - analysis/visualize_state.py
+  - analysis/__init__.py
+  entrypoints:
+  - analysis/*.py
+- id: utils
+  tag: '[#UTILS]'
+  purpose: Config manager, script helpers, JSON IO conventions.
+  modules:
+  - src/utils/archive_obstacles.py
+  - src/utils/config.py
+  - src/utils/energy_utils.py
+  - src/utils/script_utils.py
+  entrypoints: []
+- id: validation
+  tag: '[#VALIDATION]'
+  purpose: Validation scripts for tiling, obstacles, energy, growth fidelity.
+  modules:
+  - validation/run_all.py
+  - validation/validate_energy.py
+  - validation/validate_obstacles.py
+  - validation/validate_tiling.py
+  - validation/visualize_growth_fidelity.py
+  entrypoints:
+  - validation/run_all.py
+- id: dev_tools
+  tag: '[#DEV-TOOLS]'
+  purpose: One-off diagnostics and debugging tools.
+  modules:
+  - dev_tools/debug_flip_geometry.py
+  - dev_tools/diagnose_active_region_flips.py
+  - dev_tools/system_diagnostic.py
+  entrypoints:
+  - dev_tools/*.py
+interfaces:
+- tag: '[#TILINGS-CORE]'
+  api: PenroseTiling.generate() -> dict
+  module: src/tilings/penrose_p3.py
+- tag: '[#ENERGY-CALC]'
+  api: 'WidomInspiredEnergy.update_tiling_energy(tiling_data: Dict) -> Dict'
+  module: src/energy/widom_inspired_energy.py
+- tag: '[#OBSTACLES]'
+  api: 'ObstacleCreator.apply_obstacles(tiling_data: Dict, spec: ObstacleSpec) -> Dict'
+  module: src/obstacle/obstacle_creator.py
+- tag: '[#FLIP-ENGINE]'
+  api: 'FlipEngine.find_flippable_hexagons(tiling_data: Dict) -> List[List[int]]'
+  module: src/simulation/flip_engine.py
+- tag: '[#FLIP-ENGINE]'
+  api: 'FlipEngine.apply_flip(cluster_ids: List[int], tiling_data: Dict) -> bool'
+  module: src/simulation/flip_engine.py
+- tag: '[#MC-HEALING]'
+  api: MCEngine.run(...) -> Dict (results)
+  module: src/simulation/mc_engine.py
+- tag: '[#GROWTH]'
+  api: GrowthEngine.run(...) -> Dict (growth results)
+  module: src/simulation/growth_engine.py
+- tag: '[#UTILS]'
+  api: 'ConfigManager(path).<sections> (tiling/exports/energy/mc/...) '
+  module: src/utils/config.py
+invariants:
+- id: determinism
+  rule: For baseline runs, the same config + seed must produce identical outputs (no uncontrolled RNG).
+- id: tile_flag_exclusion
+  rule: A tile must never be both removed (pore) and immobile (fixed defect).
+- id: removed_neighbors_blank
+  rule: 'If a tile is removed, it must not participate in adjacency-based dynamics; preferred: neighbors = [] and
+    excluded from flips/growth.'
+- id: id_type_policy
+  rule: Use int IDs in-memory. If JSON forces string keys (e.g., adjacency_graph dict), normalize on load/save consistently.
+- id: energy_hierarchy
+  rule: Widom-inspired base class energies remain ordered (LOW < MEDIUM < HIGH); continuous corrections must not
+    invert ordering.
+- id: pores_zero_energy
+  rule: Removed tiles contribute 0.0 to total energy and are excluded from energy-sensitive dynamics unless explicitly
+    modeled.
+- id: schema_stability
+  rule: Changing output schemas/paths requires updating this YAML + glossary + relevant validation scripts.
+data_contracts:
+  tiling_state:
+    required_keys:
+    - tiles
+    - adjacency_graph
+    - metadata
+    optional_keys:
+    - lattice_coords
+    - strip_families
+    - tile_count
+    - window_size
+    validation:
+    - len(tiles) > 0
+    - adjacency_graph keys correspond to tile ids (after normalization)
+  tile:
+    required_keys:
+    - id
+    - type
+    - vertices
+    - center
+    optional_keys:
+    - neighbors
+    - removed
+    - immobile
+    - flippable
+    - vertex_class
+    - local_energy
+    validation:
+    - id is unique
+    - type in {'THICK','THIN'} (or project-defined enum)
+    - if removed==True then neighbors==[] (preferred) and local_energy==0.0
+  obstacle_spec:
+    required_keys:
+    - obstacle_type
+    - density
+    optional_keys:
+    - positions
+    - radii
+    - seed
+    - min_separation
+    - active_type
+    validation:
+    - obstacle_type in {'pores','fixed_defects'}
+    - density within configured sweep bounds
+  experiment_result:
+    required_keys:
+    - meta
+    - metrics
+    optional_keys:
+    - series
+    - analysis
+    - plots
+    validation:
+    - meta includes config snapshot (or config path reference)
+    - metrics include defect counts and energy summaries
+glossary:
+  tiles:
+    type: list[Tile]
+    shape: '[n_tiles]'
+    meaning: List of tile objects (dicts) describing the Penrose tiling state.
+    constraints: Length is stable for a given tiling unless growth adds tiles; IDs are unique.
+    source: PenroseTiling.generate(); then enriched by obstacles and energy init.
+    consumers:
+    - ObstacleCreator
+    - WidomInspiredEnergy
+    - FlipEngine
+    - MCEngine
+    - GrowthEngine
+    - validators
+    example_value: '[{id: 0, type: ''THICK'', ...}, ...]'
+  adjacency_graph:
+    type: dict[int, list[int]] (in-memory) / dict[str, list[int]] (on JSON)
+    shape: '{tile_id: [neighbor_ids]}'
+    meaning: 'Topology: neighbor relationships between tiles.'
+    constraints: No removed tile should appear in active adjacency (preferred).
+    source: Penrose tiling builder; may be modified/filtered by obstacle pipeline.
+    consumers:
+    - FlipEngine
+    - GrowthEngine
+    - validation/validate_tiling.py
+    example_value: '{0: [1,5,9], 1: [0,2], ...}'
+  removed:
+    type: bool
+    meaning: 'Marks a pore: tile removed from physical growth region.'
+    constraints: If removed=True then immobile must be False; local_energy must be 0.0; neighbors should be blanked.
+    source: ObstacleCreator.apply_obstacles()
+    consumers:
+    - GrowthEngine
+    - MCEngine
+    - validators
+    - viz
+    example_value: 'true'
+  immobile:
+    type: bool
+    meaning: 'Marks a fixed defect: tile is present but cannot move/flip.'
+    constraints: If immobile=True then removed must be False; flip/growth must respect immobility.
+    source: ObstacleCreator.apply_obstacles()
+    consumers:
+    - FlipEngine
+    - GrowthEngine
+    - validators
+    example_value: 'false'
+  vertex_class:
+    type: int|str (project-defined)
+    meaning: Discrete Widom-inspired environment class label for the tile/vertex.
+    constraints: Must exist for all active tiles after energy init.
+    source: CombinatorialVertexClassifier + WidomInspiredEnergy.update_tiling_energy()
+    consumers:
+    - Energy validation
+    - MC acceptance
+    - metrics
+    example_value: '0'
+  local_energy:
+    type: float
+    meaning: Local energy contribution of a tile after Widom-inspired model (+ limited corrections).
+    constraints: '>=0; pores contribute 0; class ordering should hold statistically.'
+    source: WidomInspiredEnergy.compute_local_energy() / update_tiling_energy()
+    consumers:
+    - compute_total_energy
+    - MC acceptance
+    - analysis plots
+    example_value: '1.0'
+  temperature:
+    type: float
+    meaning: MC temperature controlling acceptance of flips.
+    constraints: Must be explicit; deterministic baseline uses fixed schedule values.
+    source: phase2_experiments.toml [mc]/[healing]/[temp_sweep]
+    consumers:
+    - MCEngine
+    - temperature sweep scripts
+    example_value: '0.5'
+parameters:
+  project:
+    name: quasi-phason
+    phase: 2
+    output_dir: data/experiments/growth
+    random_seed: 42
+  tiling:
+    method: de_bruijn_pentagrid
+    window_origin:
+    - 0.0
+    - 0.0
+    window_size:
+    - 60.0
+    - 60.0
+    offsets:
+    - 0.0625
+    - 0.1875
+    - 0.34375
+    - 0.15625
+    - 0.25
+    seed: 42
+  exports:
+    format: json
+    include_adjacency: true
+    save_lattice_coords: true
+    tiling_json: data/raw/penrose_tiling.json
+    output_dir: data/obstacles
+  visualization:
+    show_tile_ids: false
+    show_plots: false
+    save_plots: true
+    plot_dpi: 300
+    figsize:
+    - 12
+    - 12
+    tile_colors:
+      THICK: '#e74c3c'
+      THIN: '#3498db'
+    obstacle_colors:
+      pore: '#2c3e50'
+      fixed_defect: '#f39c13'
+  energy:
+    high_energy_penalty: 2.0
+    medium_energy_penalty: 1.0
+    low_energy_reference: 0.0
+    neighbor_interaction_strength: 0.1
+    geometric_strain_penalty: 0.2
+  mc:
+    temperature: 0.8
+    steps: 200
+    neighborhood_radius: 4
+    verify_energy: false
+  debug:
+    verbosity: 2
+    progress_every: 10
+    trace_every: 50
+  obstacles:
+    types:
+    - pores
+    - fixed_defects
+    placement: multiple_scalable
+    density_sweep:
+    - 0.005
+    - 0.01
+    - 0.02
+    - 0.03
+    - 0.05
+    - 0.1
+    min_radius: 2.0
+    max_radius: 8.0
+    defect_cluster_size: 1
+    min_separation: 2.0
+    output_dir: data/obstacles
+    active_type: pores
+    test_densities:
+    - 0.0
+    placement_method: multiple_scalable
+  growth:
+    tiling_path: data/processed/penrose_tiling_energy_initialized.json
+    seed_radius: 5.0
+    growth_steps: 5
+    mc_steps_per_growth: 200
+    healing_radius: 3.0
+  healing:
+    scenario: base
+    tiling_path: data/processed/penrose_tiling_energy_initialized.json
+    output_dir: data/experiments/healing
+    seed_radius: 10.0
+    num_defects: 15
+    defect_threshold: 1.5
+    annealing_schedule:
+    - 5.0
+    - 2.5
+    - 1.2
+    - 0.6
+    - 0.3
+    - 0.15
+    - 0.05
+  temp_sweep:
+    output_dir: data/experiments/temp_sweep
+    temperatures:
+    - 0.8
+    - 1.0
+    - 1.2
+    - 1.5
+  metrics:
+    track_defects: true
+    track_energy: true
+    save_full_state: true
+    save_visualization: true
+    plot_format: png
+    plot_dpi: 200
+  validation:
+    check_overlaps: true
+    verify_counts: true
+    max_density: 0.5
+cross_cutting_concerns:
+- concern: determinism
+  tilings: HIGH
+  energy: HIGH
+  obstacles: HIGH
+  flip: HIGH
+  mc: HIGH
+  growth: HIGH
+  notes: Baseline requires fixed seeds + deterministic placement + stable iteration order.
+- concern: memory_usage
+  tilings: HIGH
+  energy: MED
+  obstacles: LOW
+  flip: MED
+  mc: MED
+  growth: MED
+  notes: Adjacency graph + per-tile fields dominate.
+- concern: runtime_hotspots
+  tilings: MED
+  energy: MED
+  obstacles: MED
+  flip: MED
+  mc: HIGH
+  growth: HIGH
+  notes: MC steps and growth steps scale with iterations; obstacle placement needs spatial indexing.
+- concern: parallel_safety
+  tilings: 'YES'
+  energy: MIXED
+  obstacles: 'YES'
+  flip: 'YES'
+  mc: MIXED
+  growth: MIXED
+  notes: Energy caching and shared mutable state complicate parallelism.
+- concern: debuggability
+  tilings: HIGH
+  energy: MED
+  obstacles: MED
+  flip: LOW
+  mc: LOW
+  growth: LOW
+  notes: Flip/MC/growth require minimal reproductions and invariant checks.

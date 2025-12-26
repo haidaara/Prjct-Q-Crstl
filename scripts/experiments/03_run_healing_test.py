@@ -144,7 +144,18 @@ def run_experiment():
 
     scenario = str(healing.get("scenario", "base"))
     tiling_path = str(healing.get("tiling_path", "data/processed/penrose_tiling_energy_initialized.json"))
-    output_dir = str(healing.get("output_dir", "data/experiments/healing"))
+    
+    # FIX: Create Run Directory IMMEDIATELY
+    output_dir_base = Path(healing.get("output_dir", "data/experiments/healing"))
+    output_dir_base.mkdir(parents=True, exist_ok=True)
+
+    # Calculate Run ID and Create Folder
+    run_id = _next_run_id(output_dir_base, f"healing_{scenario}")
+    run_dir = output_dir_base / f"healing_{scenario}_run_{run_id:03d}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Point output_dir to the specific run folder
+    output_dir = str(run_dir)
 
     seed_radius = float(healing.get("seed_radius", 10.0))
     num_defects = int(healing.get("num_defects", 15))
@@ -168,85 +179,242 @@ def run_experiment():
     tiling = load_tiling(tiling_path)
     classifier, energy_model, flip_engine = setup_simulation_components(str(cfg.config_path))
 
-
     initialize_seed_region(tiling, seed_radius=seed_radius, set_flippable=True)
 
-    active_ids = create_defects_strictly(
-        tiling, energy_model, flip_engine,
-        num_defects=num_defects,
-        log=log
-    )
-
-    # Initial defect count
-    wipe_all_energy_fields(tiling)
-    clear_all_caches(energy_model)
-    defects_start = sum(
-        1 for tid in active_ids
-        if energy_model.compute_local_energy(tid, tiling) > defect_threshold
-    )
-    log(f"  Initial Defects: {defects_start}", 1)
-
-    # MC engine
-    mc = MonteCarloEngine(
-        temperature=temperature,
+    # ======================================================================
+    # ⚡ PHASE 1: DAMAGE INJECTION (Two-Engine Protocol)
+    # Goal: Use High-T Engine to scramble, then switch to Low-T Engine.
+    # ======================================================================
+    
+    # 1. Setup DAMAGE Engine (High Temperature)
+    # We use a specific High-T engine just for scrambling.
+    T_damage = 5.0
+    mc_damage = MonteCarloEngine(
+        temperature=T_damage, 
         energy_model=energy_model,
         flip_engine=flip_engine,
         config={
-            "temperature": temperature,
+            "temperature": T_damage,
             "base_steps": base_steps,
             "neighborhood_radius": neighborhood_radius,
             "verify_energy": verify_energy,
-            "verbosity": verbosity,
-            "trace_every": trace_every,
-
+            "verbosity": 0, # Quiet during damage
         },
     )
-    mc.initialize_energy(tiling)
+    mc_damage.initialize_energy(tiling)
 
-    log("🎲 Starting Monte Carlo...", 1)
+    target_defects = num_defects
+    log(f"⚡ DAMAGE PHASE: Heating (T={T_damage}) to create {target_defects} energetic defects...", 1)
+    
+    start_defects = 0
+    damage_steps = 0
+    check_interval = 50 # Check every 50 steps to save time
+    
+    # 2. Run Damage Loop
+    while start_defects < target_defects and damage_steps < 3000:
+        # Run a burst of steps
+        mc_damage.run_sweep(tiling, steps=check_interval) 
+        damage_steps += check_interval
+        
+        # --- CRITICAL FIX: Clear Caches Before Counting ---
+        # As per expert feedback: Ensure we scan the REAL state, not stale data.
+        wipe_all_energy_fields(tiling)
+        clear_all_caches(energy_model)
+        # --------------------------------------------------
+        
+        # Check progress (Metric: High Energy Tiles)
+        start_defects = sum(
+            1 for t in tiling["tiles"] 
+            if energy_model.compute_local_energy(t["id"], tiling) > defect_threshold
+        )
+        
+        log(f"   🔥 Heating Step {damage_steps}: High-Energy Tiles={start_defects} (Target: {target_defects})", 1)
+
+    if start_defects == 0:
+        log("❌ CRITICAL ERROR: High-T Damage Phase failed. System is still perfect.", 1)
+        sys.exit(1)
+        
+    log(f"✅ DAMAGE COMPLETE: Scrambled. Starting Count: {start_defects} Defects.", 1)
+
+# 3. Snapshot ("The Before Picture")
+    timestamp = int(time.time())
+    snapshot_filename = f"healing_damaged_state_{timestamp}.json"
+    damaged_snapshot_path = run_dir / snapshot_filename
+    # Folder already created at start
+    
+    try:
+        # FIX: Compute energy so we can visualize the damage
+        energy_model.update_tiling_energy(tiling) 
+        
+        tiling["adjacency_graph"] = {
+            str(t["id"]): list(t.get("neighbors", [])) for t in tiling.get("tiles", [])
+        }
+
+
+        with open(damaged_snapshot_path, 'w') as f:
+            json.dump(tiling, f, indent=2)
+
+        log(f"📸 SNAPSHOT SAVED: {damaged_snapshot_path}", 1)
+    except Exception as e:
+        log(f"⚠️ Could not save snapshot: {e}", 1)
+
+    # ======================================================================
+    # 🩺 PHASE 2: HEALING (ROBUST ANNEALING)
+    # Goal: Continuous cooling from 5.0 -> 0.05 with smart step allocation.
+    # ======================================================================
+    
+    # 1. Load & Validate Schedule
+    default_schedule = [5.0, 2.5, 1.2, 0.6, 0.3, 0.15, 0.05]
+    raw_schedule = healing.get("annealing_schedule", default_schedule)
+    
+    # Ensure list of floats
+    annealing_schedule = [float(t) for t in raw_schedule]
+
+    # Validation: Prevent configuration errors
+    if not annealing_schedule:
+        raise ValueError("❌ Config Error: annealing_schedule cannot be empty.")
+    if any(t <= 0.0 for t in annealing_schedule):
+        raise ValueError(f"❌ Config Error: All temperatures must be > 0. Got: {annealing_schedule}")
+    
+    nT = len(annealing_schedule)
+
+    # 2. Robust Step Allocation (Handle remainders & small budgets)
+    # If we have fewer steps than stages, compress the schedule
+    if total_steps < nT:
+        log(f"⚠️ Total steps ({total_steps}) < Stages ({nT}). Compressing schedule.", 1)
+        # Pick indices evenly spaced
+        idxs = [int(round(i * (nT - 1) / max(1, total_steps - 1))) for i in range(total_steps)]
+        annealing_schedule = [annealing_schedule[i] for i in idxs]
+        nT = len(annealing_schedule)
+
+    # Distribute steps: base amount + remainder distributed to first few stages
+    base_steps_per_stage = total_steps // nT
+    remainder = total_steps % nT
+    stage_steps_list = [base_steps_per_stage + (1 if i < remainder else 0) for i in range(nT)]
+
+    log(f"🩺 SWITCHING TO ANNEALING: {nT} Stages", 1)
+    log(f"   📅 Schedule: {annealing_schedule}", 1)
+    log(f"   ℹ️  Allocation: {stage_steps_list} steps/stage", 1)
+
     t0 = time.time()
-
     accepted_total = 0
     max_drift = 0.0
-    done = 0
+    global_step = 0
+    
+    snapshot_interval = 50
+    next_snapshot = snapshot_interval
 
-    while done < total_steps:
-        chunk = min(progress_every, total_steps - done)
-        stats = mc.run_sweep(tiling, steps=chunk)
-        accepted_total += int(stats.get("accepted", 0))
-        max_drift = max(max_drift, float(stats.get("max_drift", 0.0)))
-        done += chunk
+    # 3. The Annealing Loop
+    for stage_idx, current_temp in enumerate(annealing_schedule):
+        steps_this_stage = stage_steps_list[stage_idx]
+        if steps_this_stage <= 0: continue
 
-        log(
-            f"  ⏳ MC progress: {done}/{total_steps} ({100.0*done/max(1,total_steps):.1f}%) "
-            f"| accepted={accepted_total} | max_drift={max_drift:.6f}",
-            1
+        log(f"\n🌡️ STAGE {stage_idx+1}/{nT}: Cooling to T={current_temp} ({steps_this_stage} steps)...", 1)
+        
+        # Create fresh engine for this temperature
+        mc_heal = MonteCarloEngine(
+            temperature=current_temp,
+            energy_model=energy_model,
+            flip_engine=flip_engine,
+            config={
+                "temperature": current_temp,
+                "base_steps": 100,
+                "neighborhood_radius": neighborhood_radius,
+                "verify_energy": verify_energy,
+                "verbosity": verbosity,
+            },
         )
+        mc_heal.initialize_energy(tiling)
 
-    dt = time.time() - t0
-    acceptance = accepted_total / max(1, total_steps)
-    log(f"✅ MC finished in {dt:.2f}s | acceptance={acceptance:.1%} | max_drift={max_drift:.6f}", 1)
+        stage_done = 0
+        stage_accepted = 0
+        
+        while stage_done < steps_this_stage:
+            # Calculate chunk size (don't over-run stage or global limits)
+            chunk_size = min(progress_every, snapshot_interval, steps_this_stage - stage_done)
+            if chunk_size <= 0: break 
+            
+            stats = mc_heal.run_sweep(tiling, steps=chunk_size)
+            
+            n_acc = int(stats.get("accepted", 0))
+            accepted_total += n_acc
+            stage_accepted += n_acc
+            max_drift = max(max_drift, float(stats.get("max_drift", 0.0)))
+            
+            stage_done += chunk_size
+            global_step += chunk_size
 
-    # Final defect count
+            # --- Early Exit Optimization ---
+            # If in the deep freeze (lowest T) and nothing is moving, stop wasting CPU.
+            if current_temp == annealing_schedule[-1] and stage_done > 100 and stage_accepted == 0:
+                log("   🧊 Deep Freeze detected (0 moves). Exiting stage early.", 1)
+                # Fast-forward global counter to keep logs consistent
+                global_step += (steps_this_stage - stage_done)
+                break
+
+            # --- Robust Snapshotting ---
+            if global_step >= next_snapshot:
+                snap_name = f"healing_step_{global_step:04d}.json"
+                snap_path = run_dir / snap_name
+                try:
+                    # FIX: Update energy fields so snapshot is physically truthful
+                    # (Snapshot should reflect the state of the system, not just geometry)
+                    energy_model.update_tiling_energy(tiling)
+
+                    tiling["adjacency_graph"] = {
+                        str(t["id"]): list(t.get("neighbors", [])) for t in tiling.get("tiles", [])
+                    }
+
+                    with open(snap_path, 'w') as f:
+                        json.dump(tiling, f)
+                    log(f"   📸 Snapshot: {snap_name} (T={current_temp})", 1)
+                except Exception as e:
+                    log(f"   ⚠️ Snapshot failed: {e}", 1)
+                next_snapshot += snapshot_interval
+
+            # Log Progress
+            log(
+                f"   ⏳ Global {global_step}/{total_steps} | Stage {stage_done}/{steps_this_stage} | "
+                f"T={current_temp} | Acc={n_acc}", 
+                1
+            )
+    # ======================================================================
+    # 📊 PHASE 3: RESULTS ANALYSIS
+    # ======================================================================
+    
+    # 1. Final Defect Count (FIXED: Scan all tiles, no 'active_ids')
     wipe_all_energy_fields(tiling)
     clear_all_caches(energy_model)
+    
     defects_end = sum(
-        1 for tid in active_ids
-        if energy_model.compute_local_energy(tid, tiling) > defect_threshold
+        1 for t in tiling["tiles"]
+        if energy_model.compute_local_energy(t["id"], tiling) > defect_threshold
     )
+
+    # 2. Link Start Variable
+    # We use 'start_defects' which we calculated in Phase 1
+    defects_start = start_defects 
 
     log("-" * 60, 1)
     eff = (defects_start - defects_end) / max(1, defects_start)
     log(f"RESULTS: {defects_start} -> {defects_end} (Efficiency: {eff:.1%})", 1)
     log(f"Drift: {max_drift:.6f}\n", 1)
 
-    # Save results
-    out_dir = Path(output_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
 
-    run_id = _next_run_id(out_dir, f"healing_{scenario}")
-    run_path = out_dir / f"healing_{scenario}_run_{run_id:03d}.json"
-    latest_path = out_dir / "latest.json"
+    # Save results
+    # run_dir and run_id were created at start
+    run_path = run_dir / f"healing_{scenario}_run_{run_id:03d}.json"
+    latest_path = output_dir_base / "latest.json"
+
+    dt = time.time() - t0
+    acceptance_rate = (accepted_total / total_steps) if total_steps > 0 else 0.0
+
+    # FIX: Regenerate Adjacency Graph from Tile Neighbors to prevent staleness
+    tiling["adjacency_graph"] = {
+        str(t["id"]): list(t.get("neighbors", [])) for t in tiling.get("tiles", [])
+    }
+
+    
 
     payload = {
         "meta": {
@@ -255,6 +423,9 @@ def run_experiment():
             "input_tiling": tiling_path,
             "output_dir": output_dir,
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "obstacle_density": 0.0, # Placeholder for Viz Title
+            "temperature": temperature,
+            "steps": total_steps
         },
         "config": {
             "seed_radius": seed_radius,
@@ -268,28 +439,45 @@ def run_experiment():
                 "verify_energy": verify_energy,
             },
             "verbosity": verbosity,
-            "progress_every": progress_every,
-            "trace_every": trace_every,
-
         },
         "results": {
             "defects_start": defects_start,
             "defects_end": defects_end,
             "efficiency": eff,
             "accepted": accepted_total,
-            "acceptance_rate": acceptance,
+            "acceptance_rate": acceptance_rate, # Fixed variable name
             "max_drift": max_drift,
-            "runtime_s": dt,
+            "runtime_s": dt,                    # Fixed variable name
         },
+        # CRITICAL: Save Geometry for Visualization
+        "tiles": tiling["tiles"],
+        "adjacency_graph": tiling["adjacency_graph"],
+        "obstacle_metadata": tiling.get("obstacle_metadata", {})
     }
 
+    
+    # 1. Save Full State (Geometry + Metrics) -> For Visualization
+    # 'run_path' is the heavy file
     with open(run_path, "w") as f:
         json.dump(payload, f, indent=2)
 
+    # 2. Save Summary (Metrics Only) -> For Quick Analysis
+    # Create a lightweight copy by removing heavy geometry arrays
+    summary_payload = copy.deepcopy(payload)
+    summary_payload.pop("tiles", None)
+    summary_payload.pop("adjacency_graph", None)
+    summary_payload.pop("obstacle_metadata", None)
+    
+    summary_path = run_dir / f"healing_{scenario}_run_{run_id:03d}_summary.json"
+    with open(summary_path, "w") as f:
+        json.dump(summary_payload, f, indent=2)
+
+    # 3. Update Latest (Point to Full State)
     with open(latest_path, "w") as f:
         json.dump(payload, f, indent=2)
 
-    log(f"💾 Saved: {run_path.as_posix()}", 1)
+    log(f"💾 Saved Full State: {run_path.name} (for viz)", 1)
+    log(f"📄 Saved Summary   : {summary_path.name} (for stats)", 1)
     log(f"📌 Latest: {latest_path.as_posix()}", 1)
 
 

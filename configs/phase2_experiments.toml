@@ -62,14 +62,16 @@ geometric_strain_penalty = 0.2         # Extra penalty for geometric strain
 # 5) MONTE CARLO DYNAMICS (03 uses steps/R; 04 uses temperature/base_steps)
 # ---------------------------------------------------------------------
 [monte_carlo]
-temperature = 0.8                      # MC temperature T (05 overrides per sweep)
+# 0.1–0.5 conservative; ~0.8 good healing; 1.0–1.5 more random/melting
+temperature = 0.1                      # MC temperature T (05 overrides per sweep)
+# 50 quick; 100 normal; 200+ more stable (if used)
 base_steps = 100                       # Base steps (used by some runners/engines)
 burn_in_steps = 50                     # Burn-in equilibration steps (if used)
-
-## 200 for sample # 10000 for real analysis
-steps =  10                            # Total MC steps for healing sweeps (03 expects this)
-neighborhood_radius = 4                # Local neighborhood radius (R) for MC moves
-verify_energy = false                  # Expensive checks; True only for debugging
+#(03) 100 quick; 200 normal; 500–2000 for better stats
+steps =  3000                            # Total MC steps for healing sweeps (03 expects this)
+neighborhood_radius = 3                # Local neighborhood radius (R) for MC moves
+verify_energy = true                  # Expensive checks; True only for debugging
+steps_per_growth = 200              # MC steps after each growth step (04 expects this)
 
 # Legacy alias (keep for backward compat if any script still reads [mc])
 [mc]
@@ -77,6 +79,14 @@ temperature = 0.8                      # Alias of monte_carlo.temperature
 steps = 200                            # Alias of monte_carlo.steps
 neighborhood_radius = 4                # Alias of monte_carlo.neighborhood_radius
 verify_energy = false                  # Alias of monte_carlo.verify_energy
+
+# ---------------------------------------------------------------------
+# 11) DEBUG / PRINTING (03/04/05 read this)
+# ---------------------------------------------------------------------
+[debug]
+verbosity = 2                          # 1=progress; 2=step-level debug traces
+progress_every = 10                     # Print progress summary every N outer steps
+trace_every = 50                       # Verbosity=2: print MC trace every N MC steps
 
 # ---------------------------------------------------------------------
 # 6) OBSTACLES (02 generator + 04 growth selection)
@@ -102,7 +112,9 @@ placement_method = "multiple_scalable" # Tag for metadata/naming consistency
 [growth]
 tiling_path = "data/processed/penrose_tiling_energy_initialized.json"  # Canonical input
 seed_radius = 5.0                      # Seed radius for initial growth region
+# 3 quick test; 5–10 normal; 20–50 production
 growth_steps = 5                       # Number of growth iterations
+# 50 quick; 200 normal; 500+ production relaxation
 mc_steps_per_growth = 200          # MC steps after each growth step
 healing_radius = 3.0                   # Optional: local healing radius (if used by engine)
 
@@ -116,7 +128,8 @@ output_dir = "data/experiments/healing" # Output dir for healing runs
 seed_radius = 10.0                     # Seed region radius for defect insertion
 num_defects = 15                       # Number of defects to inject
 defect_threshold = 1.5                 # Threshold used by defect finder/classifier
-
+# Robust continuous schedule: Damage(5.0) -> Liquid -> Glass -> Freeze(0.05)
+annealing_schedule = [5.0, 2.5, 1.2, 0.6, 0.3, 0.15, 0.05]
 # ---------------------------------------------------------------------
 # 9) TEMPERATURE SWEEP (05 reads this; calls 04 repeatedly)
 # ---------------------------------------------------------------------
@@ -135,13 +148,6 @@ save_visualization = true              # Enable plotting outputs if script suppo
 plot_format = "png"                    # Plot format (png/pdf)
 plot_dpi = 200                         # DPI used for run-level plots
 
-# ---------------------------------------------------------------------
-# 11) DEBUG / PRINTING (03/04/05 read this)
-# ---------------------------------------------------------------------
-[debug]
-verbosity = 1                          # 1=progress; 2=step-level debug traces
-progress_every = 1                     # Print progress summary every N outer steps
-trace_every = 50                       # Verbosity=2: print MC trace every N MC steps
 
 # ---------------------------------------------------------------------
 # 12) VALIDATION (used by validators / obstacle checks if enabled)

@@ -19,6 +19,75 @@ class FlipEngine:
         self.tolerance_absolute = 1e-6
         self.verbose = verbose
     
+    def _rebuild_adjacency_global(self, tiling_data: Dict) -> None:
+        """
+        PHYSICS FIX: Global Adjacency Rebuild (Rigorous).
+        Recomputes the entire graph topology from scratch based on current geometry.
+        
+        Improvements over standard rebuild:
+        1. Deterministic: Neighbor lists are sorted.
+        2. Hygienic: 'removed' tiles are explicitly cleared.
+        3. ID Discipline: Uses list index as canonical ID.
+        4. Geometry Safety: Detects non-manifold edges (shared by >2 tiles).
+        """
+        tiles = tiling_data["tiles"]
+        edge_to_tiles = defaultdict(list)
+        
+        # --- PASS 1: Build Geometry Map (Active Tiles Only) ---
+        for idx, tile in enumerate(tiles):
+            # Enforce ID discipline: The index is the ID.
+            if tile.get("id") != idx:
+                tile["id"] = idx
+            
+            if tile.get("removed", False):
+                continue
+
+            vertices = tile["vertices"]
+            for i in range(4):
+                # Normalize edge to ensure direction-independence
+                p1, p2 = vertices[i], vertices[(i + 1) % 4]
+                edge = self._normalize_edge(p1, p2)
+                edge_to_tiles[edge].append(idx)
+
+        # --- PASS 2: Reconstruct Graph (All Tiles) ---
+        adjacency_graph = {}
+        
+        for idx, tile in enumerate(tiles):
+            # Case A: Removed Tile -> WIPE EVERYTHING
+            if tile.get("removed", False):
+                tile["neighbors"] = []
+                adjacency_graph[str(idx)] = []
+                continue
+
+            # Case B: Active Tile -> Rebuild from map
+            neighbors = set()
+            vertices = tile["vertices"]
+            
+            for i in range(4):
+                p1, p2 = vertices[i], vertices[(i + 1) % 4]
+                edge = self._normalize_edge(p1, p2)
+                
+                # Get all tiles sharing this edge
+                connected_indices = edge_to_tiles.get(edge, [])
+                
+                # Optional: Geometry Integrity Check (warn if >2 tiles share an edge)
+                if self.verbose and len(connected_indices) > 2:
+                    print(f"⚠️ WARN: Edge {edge} shared by {len(connected_indices)} tiles: {connected_indices}")
+
+                for neighbor_idx in connected_indices:
+                    if neighbor_idx != idx:
+                        neighbors.add(neighbor_idx)
+            
+            # Determinism: Sort the neighbors
+            sorted_neighbors = sorted(list(neighbors))
+            
+            # Update Source of Truth (both Tile object and Graph)
+            tile["neighbors"] = sorted_neighbors
+            adjacency_graph[str(idx)] = sorted_neighbors
+            
+        tiling_data["adjacency_graph"] = adjacency_graph
+
+
     def compute_edge_length(self, tiling_data: Dict) -> float:
         """Compute Penrose edge length from tiling data"""
         if self.L is not None:
@@ -202,14 +271,17 @@ class FlipEngine:
             tile["center"] = new_centers[rhombus_idx].tolist()
             tile["type"] = self._determine_tile_type(tile["vertices"])
             
-        self._update_edge_maps_after_flip(cluster_ids, tile_to_edges, edge_to_tiles, tiling_data)
-        self._update_adjacency_from_edges(cluster_ids, affected_tiles, edge_to_tiles, tiling_data)
+        # ---------------------------------------------------------
+        # CRITICAL FIX: Replaced local updates with Global Rebuild
+        # ---------------------------------------------------------
+        self._rebuild_adjacency_global(tiling_data)
+        # ---------------------------------------------------------
         
         # CRITICAL: Recompute energy for the affected radius 3 region
+        # (Neighbors are now correct, so this calculation is safe)
         self._recompute_energy_for_region(affected_tiles, tiling_data)
         
         return True
-
     def _recompute_energy_for_region(self, tile_ids: Set[int], tiling_data: Dict):
         """Recompute energy for affected region, invalidating caches for 4-ring"""
         # Get 4-ring neighborhood for cache invalidation (Safety margin)

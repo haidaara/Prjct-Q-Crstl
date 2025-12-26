@@ -4,78 +4,73 @@
     "obstacle_type": "pores",
     "density": 0.0,
     "density_token": "d0p000",
-    "run_id": 6,
+    "run_id": 1,
     "input_tiling": "data/processed/penrose_tiling_energy_initialized.json",
     "config": "configs/phase2_experiments.toml"
   },
   "params": {
     "growth_steps": 5,
     "mc_steps_per_growth": 200,
-    "temperature": 0.8
+    "temperature": 0.1
   },
   "metrics": {
-    "final_energy": 309.3839951218656,
-    "defects_end": 1,
-    "defect_density_end": 0.0038314176245210726,
-    "mean_acceptance_rate": 0.06699999999999999,
-    "total_new_tiles": 166
+    "final_energy": null,
+    "defects_end": 0,
+    "defect_density_end": 0.0,
+    "mean_acceptance_rate": 0.42000000000000004,
+    "total_new_tiles": 246
   },
   "series": {
     "growth_steps": [
       {
         "step": 1,
-        "new_tiles": 24,
-        "total_energy": 306.7050004444057,
-        "acceptance_rate": 0.09,
-        "delta_mean": -0.06388886376169646,
-        "delta_std": 0.1392494810425337,
-        "positive_ratio": 0.3888888888888889,
+        "new_tiles": 39,
+        "acceptance_rate": 0.655,
+        "delta_mean": -0.01908392752223101,
+        "delta_std": 0.09580057361492433,
+        "positive_ratio": 0.4732824427480916,
         "defect_count": 0,
         "defect_density": 0.0
       },
       {
         "step": 2,
-        "new_tiles": 28,
-        "total_energy": 306.80900142641514,
-        "acceptance_rate": 0.09,
-        "delta_mean": 0.005777832333848937,
-        "delta_std": 0.35285359281401796,
-        "positive_ratio": 0.3333333333333333,
+        "new_tiles": 39,
+        "acceptance_rate": 0.305,
+        "delta_mean": -0.030327834310774602,
+        "delta_std": 0.13678931058715837,
+        "positive_ratio": 0.45901639344262296,
         "defect_count": 0,
         "defect_density": 0.0
       },
       {
         "step": 3,
-        "new_tiles": 31,
-        "total_energy": 304.62166933343116,
-        "acceptance_rate": 0.05,
-        "delta_mean": -0.21873320929839393,
-        "delta_std": 0.8681232888655881,
-        "positive_ratio": 0.2,
+        "new_tiles": 55,
+        "acceptance_rate": 0.305,
+        "delta_mean": -0.004918026899952249,
+        "delta_std": 0.11724446629239864,
+        "positive_ratio": 0.5573770491803278,
         "defect_count": 0,
         "defect_density": 0.0
       },
       {
         "step": 4,
-        "new_tiles": 37,
-        "total_energy": 307.8334854601196,
-        "acceptance_rate": 0.03,
-        "delta_mean": 0.5353026877814083,
-        "delta_std": 0.8645235973875974,
-        "positive_ratio": 0.5,
-        "defect_count": 1,
-        "defect_density": 0.004651162790697674
+        "new_tiles": 55,
+        "acceptance_rate": 0.43,
+        "delta_mean": -0.012790683673811885,
+        "delta_std": 0.14430770970542714,
+        "positive_ratio": 0.46511627906976744,
+        "defect_count": 0,
+        "defect_density": 0.0
       },
       {
         "step": 5,
-        "new_tiles": 46,
-        "total_energy": 309.3839951218656,
-        "acceptance_rate": 0.075,
-        "delta_mean": 0.10336731078307082,
-        "delta_std": 1.2342419006246343,
-        "positive_ratio": 0.6666666666666666,
-        "defect_count": 1,
-        "defect_density": 0.0038314176245210726
+        "new_tiles": 58,
+        "acceptance_rate": 0.405,
+        "delta_mean": -0.008024688658364918,
+        "delta_std": 0.09244834521996668,
+        "positive_ratio": 0.43209876543209874,
+        "defect_count": 0,
+        "defect_density": 0.0
       }
     ]
   }
