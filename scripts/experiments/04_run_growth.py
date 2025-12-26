@@ -165,14 +165,11 @@ def run_growth_experiment(config: dict, experiment_name: str = None):
             tiling_data = load_json(obstacle_file)
             input_tiling_path = str(obstacle_file)
         else:
-            print(f"⚠️  Obstacle file not found for density {density}, using base tiling")
-            for base_path in base_paths:
-                if base_path.exists():
-                    tiling_data = load_json(base_path)
-                    input_tiling_path = str(base_path)
-                    break
-            else:
-                raise FileNotFoundError("Base tiling file not found")
+                    # FIX: Crash if density > 0 but file missing
+                    print(f"❌ CRITICAL ERROR: Obstacle file not found for density {density}")
+                    print(f"   Expected path like: data/obstacles/{obstacle_type}/..._density_{density}.json")
+                    print(f"   Run 'python scripts/02_generate_obstacles.py' to create it.")
+                    sys.exit(1)
     else:
         for base_path in base_paths:
             if base_path.exists():
@@ -261,10 +258,12 @@ def run_growth_experiment(config: dict, experiment_name: str = None):
 
         tiling_data, new_tiles, mc_stats = growth_sim.grow_step(tiling_data, obstacles={})
 
+        mc_engine.energy_model.update_tiling_energy(tiling_data)
+        
         step_metrics = {
             "step": step + 1,
             "new_tiles": len(new_tiles),
-            "total_energy": mc_engine.current_energy,
+            # ... rest of dict ...
             "acceptance_rate": mc_stats.get("acceptance_rate", 0.0),
             "delta_mean": mc_stats.get("delta_mean"),
             "delta_std": mc_stats.get("delta_std"),
@@ -327,10 +326,34 @@ def run_growth_experiment(config: dict, experiment_name: str = None):
 
     overwrite_latest(experiment_file, latest_file)
 
+# --- CONTRACT FIX: Create Run Directory ---
+    run_dir = output_dir / experiment_name
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1. Save Full State (Geometry) inside the Run Folder
     if config.get("metrics", {}).get("save_full_state", False):
-        tiling_file = output_dir / f"{experiment_name}_final.json"
+        tiling_file = run_dir / f"{experiment_name}_final.json"
         with open(tiling_file, 'w') as f:
             json.dump(tiling_data, f, indent=2)
+
+    # 2. Visualization (New: Saves to .../run_XXX/viz/)
+    if config.get("metrics", {}).get("save_visualization", False):
+        print(f"🎨 Generating visualization...")
+        try:
+            from src.viz.static_plots import plot_physics_matrix
+            
+            viz_dir = run_dir / "viz"
+            viz_dir.mkdir(parents=True, exist_ok=True)
+            
+            fmt = config.get("metrics", {}).get("plot_format", "png")
+            viz_path = viz_dir / f"{experiment_name}_matrix.{fmt}"
+            
+            # Use 'tiling_data' which is available in your script
+            plot_physics_matrix(tiling_data, save_path=str(viz_path))
+            print(f"   📊 Saved Plot: {short_path(viz_path)}")
+        except Exception as e:
+            print(f"   ⚠️ Visualization failed: {e}")
+            # import traceback; traceback.print_exc()
 
     if verbosity >= 1:
         print(f"\n✅ Experiment complete!")

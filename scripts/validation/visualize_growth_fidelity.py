@@ -1,242 +1,251 @@
-#!/usr/bin/env python3
-"""
-Forensic Visualization of Growth Experiments
-Validates:
-1. Structural Integrity (Did it melt?)
-2. Defect Localization (Did it heal?)
-3. Growth Dynamics (Did it grow in layers?)
-
-Usage:
-  python scripts/validation/visualize_growth_fidelity.py [optional_path_to_json]
-  
-  If no path is provided, it automatically finds the latest *_final.json
-  in data/experiments/growth/
-"""
-
-import sys
-import json
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 import numpy as np
+import json
+import sys
+import os
 from pathlib import Path
-import glob
 
-# Add project root to path
-project_root = Path(__file__).resolve().parents[2]
-if str(project_root) not in sys.path:
-    sys.path.append(str(project_root))
+# --- HELPER: Geometric Hashing ---
+def get_tile_fingerprints(tiles):
+    """
+    Creates a set of unique strings representing the center position of each tile.
+    Used to detect which tiles are NEW (did not exist in input).
+    """
+    fingerprints = set()
+    for t in tiles:
+        # Calculate centroid
+        verts = np.array(t["vertices"])
+        center = np.mean(verts, axis=0)
+        # Create a precision-safe string hash (e.g., "10.552,-3.221")
+        h = f"{center[0]:.3f},{center[1]:.3f}"
+        fingerprints.add(h)
+    return fingerprints
 
-from src.utils.config import ConfigManager
+def plot_growth_forensics(tiling_data, output_path, input_tiling_path=None):
+    """
+    Generates a 4-Panel Matrix Report.
+    UPDATED: Uses GEOMETRIC DIFFERENCING to identify new tiles (Panel 4).
+    """
+    tiles = tiling_data.get("tiles", [])
+    meta = tiling_data.get("meta", {})
+    params = tiling_data.get("params", {})
+    
+    # --- EXTRACT CONFIG FOR SUBTITLES ---
+    # Example: "T=0.8 | Steps=200 | Density=d0.03"
+    temp = params.get("temperature", "N/A")
+    steps = params.get("mc_steps_per_growth", "N/A")
+    dens = meta.get("density_token", "N/A")
+    config_subtitle = f"Config: T={temp} | Steps={steps} | {dens}"
 
-def find_latest_final_json(base_dir):
-    """Auto-discovery of the most recent geometry dump"""
-    search_pattern = str(base_dir / "growth" / "*_final.json")
-    files = glob.glob(search_pattern)
-    
-    if not files:
-        return None
-        
-    # Sort by modification time (newest first)
-    files.sort(key=lambda x: Path(x).stat().st_mtime, reverse=True)
-    return Path(files[0])
+    if not tiles:
+        print("   ⚠️ ERROR: No tiles found.")
+        return
 
-def load_run_data(run_path=None):
-    """Smart loader: explicit path or auto-discovery"""
-    data_dir = project_root / "data" / "experiments"
+    # --- 1. IDENTIFY NEW TILES (Geometric Differencing) ---
+    new_tile_indices = set()
     
-    if run_path is None:
-        print("🔍 No file specified. Searching for latest run...")
-        run_path = find_latest_final_json(data_dir)
-        if run_path is None:
-            print("❌ No '*_final.json' files found in data/experiments/growth/")
-            print("   Make sure [metrics] save_full_state = true in your config.")
-            sys.exit(1)
-    
-    path = Path(run_path)
-    if not path.exists():
-        # Try resolving relative to project root
-        path = project_root / run_path
-        if not path.exists():
-            print(f"❌ File not found: {path}")
-            sys.exit(1)
-        
-    # LOGGING: Print path relative to project root for clarity
-    try:
-        rel_path = path.relative_to(project_root)
-        print(f"📂 Loading: {rel_path}")
-    except ValueError:
-        print(f"📂 Loading: {path}")
-    
-    # If user points to the metrics file (e.g. run_005.json), try to find run_005_final.json
-    if "final" not in path.name:
-        final_candidate = path.parent / f"{path.stem}_final.json"
-        if final_candidate.exists():
-             try:
-                 rel_final = final_candidate.relative_to(project_root)
-                 print(f"🔄 Redirecting to full geometry file: {rel_final}")
-             except ValueError:
-                 print(f"🔄 Redirecting to full geometry file: {final_candidate.name}")
-             path = final_candidate
-    
-    with open(path, 'r') as f:
-        data = json.load(f)
-        
-    # Quick Validation check
-    if "tiles" not in data:
-        print("❌ Error: JSON does not contain 'tiles' list.")
-        print("   This looks like a summary file, not a geometry dump.")
-        sys.exit(1)
-        
-    return data, path
-
-def get_defect_coords(tiling_data):
-    """Extract coordinates of high-energy vertices"""
-    defects = []
-    
-    for tile in tiling_data['tiles']:
-        if tile.get('removed', False):
-            continue
-        
-        # Check explicit class if available
-        v_class = tile.get('vertex_class', 'UNKNOWN')
-        # Also check raw energy as fallback
-        energy = tile.get('local_energy', 0.0)
-        
-        # Mark as defect if High/Medium energy (Red/Orange warning)
-        if v_class in ['HIGH_ENERGY', 'MEDIUM_ENERGY'] or energy > 1.0:
-            defects.append(tile['center'])
+    if input_tiling_path and os.path.exists(input_tiling_path):
+        print(f"   • Loading input baseline: {Path(input_tiling_path).name}")
+        try:
+            with open(input_tiling_path, 'r') as f:
+                input_data = json.load(f)
             
-    return np.array(defects)
+            # Get fingerprints of the ORIGINAL tiles
+            original_fingerprints = get_tile_fingerprints(input_data.get("tiles", []))
+            
+            # Check current tiles against original
+            new_count = 0
+            for idx, t in enumerate(tiles):
+                verts = np.array(t["vertices"])
+                center = np.mean(verts, axis=0)
+                h = f"{center[0]:.3f},{center[1]:.3f}"
+                
+                if h not in original_fingerprints:
+                    new_tile_indices.add(idx)
+                    new_count += 1
+            
+            print(f"   • Geometric Diff: Found {new_count} truly new tiles.")
+            
+        except Exception as e:
+            print(f"   ⚠️ Baseline comparison failed: {e}")
+    else:
+        print("   ⚠️ Input tiling file not found. Panel 4 will be blank.")
 
-def plot_growth_forensics(tiling_data, output_path):
-    """Generate the 3-panel forensic report"""
-    
-    tiles = tiling_data['tiles']
-    
-    # Setup Figure
-    fig, axes = plt.subplots(1, 3, figsize=(24, 8))
-    titles = ["Structural Integrity\n(Melting Check)", 
-              "Defect Distribution\n(Healing Check)", 
-              "Growth History\n(Nucleation Check)"]
-    
-    # --- PREPARE DATA ARRAYS ---
+    # --- 2. DATA EXTRACTION ---
     polygons = []
-    colors_structure = [] # Thick/Thin
-    colors_growth = []    # Time gradient
+    types = []
+    neighbor_counts = []
+    # We create a dummy ID list for the rainbow plot since real IDs are sorted
+    # This approximates radial growth if we assume sorting by position
+    ids = [] 
     
-    # Find max growth step for normalization
-    # Handle missing 'growth_step' (ungrown tiles get 0)
-    steps = [t.get('growth_step', 0) for t in tiles if not t.get('removed', False)]
-    max_step = max(steps) if steps else 1
-    
-    print(f"ℹ️  Max growth step found: {max_step}")
+    for idx, t in enumerate(tiles):
+        verts = np.array(t["vertices"])
+        polygons.append(Polygon(verts, closed=True))
+        types.append(t.get("type", "UNKNOWN"))
+        ids.append(idx) 
+        neighbor_counts.append(len(t.get("neighbors", [])))
 
-    for tile in tiles:
-        if tile.get('removed', False):
-            continue
-            
-        verts = np.array(tile['vertices'])
-        poly = Polygon(verts, closed=True)
-        polygons.append(poly)
-        
-        # 1. Structure Color (Thick/Thin)
-        if tile['type'] == 'THICK':
-            colors_structure.append('#4a90e2') # Blue
+    # --- 3. SETUP CANVAS ---
+    fig, axes = plt.subplots(2, 2, figsize=(18, 18), facecolor='white')
+    
+    # Main Title + Config Subtitle
+    fig.suptitle(f"Phason Dynamics Forensic Report\n{config_subtitle}", fontsize=20, weight='bold')
+
+    ax_geo = axes[0, 0]
+    ax_topo = axes[0, 1]
+    ax_hist = axes[1, 0]
+    ax_act = axes[1, 1]
+
+    # --- PANEL 1: GEOMETRY ---
+    ax_geo.set_title(f"1. Structural Phase Map\n{dens} Geometry", fontsize=12, weight='bold')
+    colors_geo = ['#FFD700' if t == "THIN" else '#4169E1' for t in types]
+    _render_collection(ax_geo, polygons, colors_geo)
+
+    # --- PANEL 2: TOPOLOGY ---
+    ax_topo.set_title(f"2. Coordination Map\nCrack Detection (Red=Defect)", fontsize=12, weight='bold')
+    colors_topo = []
+    for n in neighbor_counts:
+        if n >= 4: colors_topo.append('#2E8B57')  # Sea Green
+        elif n == 3: colors_topo.append('#F4A460')  # Sandy Brown
+        else: colors_topo.append('#DC143C')  # Crimson
+    _render_collection(ax_topo, polygons, colors_topo)
+
+    # --- PANEL 3: SPATIAL GRADIENT ---
+    # Since IDs are sorted by position, this is now a "Position Gradient"
+    # It still helps see the order of the file structure.
+    ax_hist.set_title(f"3. Index Gradient\n(Sorted Spatial Order)", fontsize=12, weight='bold')
+    collection_hist = PatchCollection(polygons, match_original=False)
+    collection_hist.set_array(np.array(ids))
+    collection_hist.set_cmap('viridis') 
+    collection_hist.set_edgecolor('none')
+    ax_hist.add_collection(collection_hist)
+    ax_hist.autoscale_view()
+    ax_hist.axis('equal')
+    ax_hist.axis('off')
+    cbar = plt.colorbar(collection_hist, ax=ax_hist, orientation='horizontal', pad=0.05, fraction=0.046)
+    cbar.set_label("Tile Storage Index")
+
+    # --- PANEL 4: TRUE ACTIVITY MAP ---
+    ax_act.set_title(f"4. Differential Growth Map\nMagenta = {len(new_tile_indices)} Healed Tiles", fontsize=12, weight='bold')
+    
+    colors_act = []
+    edges_act = []
+    
+    for idx in range(len(tiles)):
+        if idx in new_tile_indices:
+            # TRUE NEW TILE
+            colors_act.append('#FF00FF')  # Magenta
+            edges_act.append('black')
         else:
-            colors_structure.append('#f5a623') # Orange
-            
-        # 2. Growth Color (Time Gradient)
-        status = tile.get('growth_status', 'ungrown')
-        step = tile.get('growth_step', 0)
-        
-        if status == 'ungrown':
-            colors_growth.append('#e0e0e0') # Gray for future potential growth
-        elif status == 'frontier':
-            colors_growth.append('#ff00ff') # Magenta for active edge
-        else:
-            # Gradient: Dark Blue (seed) -> Cyan (recent)
-            intensity = step / max_step if max_step > 0 else 0
-            colors_growth.append(plt.cm.viridis(intensity))
+            # ORIGINAL TILE
+            colors_act.append('#E0E0E0')  # Light Gray
+            edges_act.append('none')
+    
+    collection_act = PatchCollection(polygons, match_original=False)
+    collection_act.set_facecolor(colors_act)
+    collection_act.set_edgecolor(edges_act)
+    collection_act.set_linewidth(0.5)
+    ax_act.add_collection(collection_act)
+    ax_act.autoscale_view()
+    ax_act.axis('equal')
+    ax_act.axis('off')
 
-    # --- PANEL 1: STRUCTURE (Did it melt?) ---
-    ax = axes[0]
-    collection = PatchCollection(polygons, match_original=False)
-    collection.set_facecolor(colors_structure)
-    collection.set_edgecolor('white')
-    collection.set_linewidth(0.5)
-    ax.add_collection(collection)
-    ax.set_title(titles[0], fontsize=12, fontweight='bold')
-    
-    # --- PANEL 2: DEFECTS (Did it heal?) ---
-    ax = axes[1]
-    # Background: faint gray structure
-    collection_bg = PatchCollection(polygons, match_original=False)
-    collection_bg.set_facecolor('#f0f0f0')
-    collection_bg.set_edgecolor('#d0d0d0')
-    collection_bg.set_linewidth(0.5)
-    ax.add_collection(collection_bg)
-    
-    # Overlay: Defects
-    defects = get_defect_coords(tiling_data)
-    if len(defects) > 0:
-        ax.scatter(defects[:,0], defects[:,1], c='red', s=15, alpha=0.7, label='Defect', zorder=10)
-        ax.legend(loc='upper right')
-    
-    ax.set_title(titles[1], fontsize=12, fontweight='bold')
+    # --- SAVE ---
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig(output_path, dpi=150)
+    plt.close(fig)
+    print(f"   ✅ SUCCESS: Matrix saved to: {output_path}")
 
-    # --- PANEL 3: GROWTH HISTORY ---
-    ax = axes[2]
-    collection_growth = PatchCollection(polygons, match_original=False)
-    collection_growth.set_facecolor(colors_growth)
-    collection_growth.set_edgecolor('black')
-    collection_growth.set_linewidth(0.2)
-    ax.add_collection(collection_growth)
-    ax.set_title(titles[2], fontsize=12, fontweight='bold')
-    
-    # --- COMMON FORMATTING ---
-    # Use window origin/size from metadata if available to keep zoom consistent
-    meta = tiling_data.get('metadata', {})
-    origin = meta.get('window_origin', [0,0])
-    size = meta.get('window_size', [60,60])
-    
-    for ax in axes:
-        ax.set_aspect('equal')
-        ax.set_xlim(origin[0], origin[0] + size[0])
-        ax.set_ylim(origin[1], origin[1] + size[1])
-        ax.axis('off')
-
-    # Save
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    
-    try:
-        rel_output = output_path.relative_to(project_root)
-        print(f"📸 Forensic visualization saved to: {rel_output}")
-    except ValueError:
-        print(f"📸 Forensic visualization saved to: {output_path}")
-
-    # Auto-open
-    try:
-        plt.show()
-    except Exception as e:
-        print(f"⚠️  Could not open display: {e}")
-        
-    plt.close()
-
+def _render_collection(ax, polys, colors):
+    coll = PatchCollection(polys, match_original=False)
+    coll.set_facecolor(colors)
+    coll.set_edgecolor('white')
+    coll.set_linewidth(0.5)
+    ax.add_collection(coll)
+    ax.autoscale_view()
+    ax.axis('equal')
+    ax.axis('off')
 if __name__ == "__main__":
-    path_arg = sys.argv[1] if len(sys.argv) > 1 else None
+    # 1. Collect files to process
+    files_to_process = []
     
-    try:
-        data, filepath = load_run_data(path_arg)
+    if len(sys.argv) > 1:
+        # Loop through ALL arguments to handle wildcards (e.g., healing_*.json)
+        for arg in sys.argv[1:]:
+            path = Path(arg)
+            if path.exists():
+                files_to_process.append(str(path))
+            else:
+                print(f"⚠️ File not found: {arg}")
+    else:
+        # Auto-detect latest if no args
+        # We check both growth and healing folders since you are working on both
+        search_dirs = [Path("data/experiments/growth"), Path("data/experiments/healing")]
+        found_files = []
+        for d in search_dirs:
+            if d.exists():
+                # Look for JSON files (final or run)
+                found_files.extend(d.glob("*.json"))
         
-        # Determine output filename
-        output_image = filepath.parent / f"{filepath.stem}_forensics.png"
-        
-        plot_growth_forensics(data, output_image)
-        
-    except Exception as e:
-        print(f"\n❌ Visualization Failed: {e}")
-        import traceback
-        traceback.print_exc()
+        if found_files:
+            found_files.sort(key=os.path.getmtime, reverse=True)
+            files_to_process.append(str(found_files[0]))
+            print(f"🤖 AUTO-DETECT: Found latest run: {found_files[0].name}")
+
+    if not files_to_process:
+        print("❌ No files found to process.")
         sys.exit(1)
+
+    print(f"🚀 Batch processing {len(files_to_process)} files...")
+
+    # 2. Process Loop (The Fix for Wildcards & Crashes)
+    for input_file in files_to_process:
+        print(f"\n🔎 PROCESSING: {Path(input_file).name}")
+        
+        # --- A. Load Data SAFELY ---
+        data = None
+        try:
+            with open(input_file, 'r') as f:
+                content = f.read()
+                if not content.strip():
+                    print("   ⚠️ SKIP: File is empty (previous crash?).")
+                    continue
+                data = json.loads(content)
+        except Exception as e:
+            print(f"   ❌ ERROR: Could not load JSON: {e}")
+            continue
+
+        # --- B. Determine Output Path ---
+        viz_root = Path("data/visualizations/growth_forensics")
+        viz_root.mkdir(parents=True, exist_ok=True)
+        output_filename = f"{Path(input_file).stem}_matrix.png"
+        output_file = viz_root / output_filename
+        
+        # --- C. Determine Baseline (Optional) ---
+        baseline_path = None
+        try:
+            raw_path = data.get("meta", {}).get("input_tiling")
+            if raw_path:
+                if os.path.exists(raw_path):
+                    baseline_path = raw_path
+                else:
+                    # Try relative to project root
+                    project_root = Path(__file__).resolve().parents[2]
+                    potential = project_root / raw_path
+                    if potential.exists():
+                        baseline_path = str(potential)
+        except:
+            pass # Baseline is optional, don't crash
+
+        # --- D. Call Original Plotting Logic ---
+        try:
+            # We call your existing function here
+            plot_growth_forensics(data, str(output_file), input_tiling_path=baseline_path)
+        except Exception as e:
+            print(f"   ⚠️ Plotting failed for this file: {e}")
+            import traceback
+            traceback.print_exc()
