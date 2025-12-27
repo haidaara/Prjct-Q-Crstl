@@ -18,120 +18,19 @@ project_root = Path(__file__).resolve().parents[2]   # .../quasi-phason
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from src.energy.combinatorial_classifier import CombinatorialVertexClassifier
+
 from src.energy.widom_inspired_energy import WidomInspiredEnergy
 from src.energy.energy_logger import EnergyLogger
 from src.tilings.penrose_p3 import PenroseTiling
 from src.utils.config import ConfigManager
 
-def validate_coordination_distribution(tiling_data):
-    """
-    FIXED: Validate coordination numbers are physically reasonable
-    Uses adjacency graph as primary source
-    """
-    print("🔬 Validating Coordination Distribution...")
-    
-    adjacency_graph = tiling_data["adjacency_graph"]
-    coord_counts = {}
-    
-    for tile_id_str, neighbors in adjacency_graph.items():
-        coord = len(neighbors)
-        coord_counts[coord] = coord_counts.get(coord, 0) + 1
-    
-    print("   Coordination distribution:", dict(sorted(coord_counts.items())))
-    
-    # Check for critical issues
-    has_coord_0 = coord_counts.get(0, 0) > 0
-    coord_1_count = coord_counts.get(1, 0)
-    coord_1_percentage = coord_1_count / len(adjacency_graph) * 100
-    
-    # Expected for Penrose: mostly coordination 3-4, some 2 (boundary), rare 5+
-    typical_coord_count = coord_counts.get(3, 0) + coord_counts.get(4, 0)
-    typical_percentage = typical_coord_count / len(adjacency_graph) * 100
-    
-    print(f"   Tiles with 0 neighbors: {has_coord_0}")
-    print(f"   Tiles with 1 neighbor: {coord_1_count} ({coord_1_percentage:.1f}%)")
-    print(f"   Typical coordination (3-4): {typical_percentage:.1f}%")
-    
-    # Validation criteria
-    coordination_valid = (
-        not has_coord_0 and                    # No isolated tiles
-        coord_1_percentage < 10.0 and          # Few single-neighbor tiles  
-        typical_percentage > 70.0              # Mostly typical coordination
-    )
-    
-    return coordination_valid, coord_counts
+from scripts.validation.validate_energy_landscape import (
+    validate_coordination_distribution,
+    validate_physics_fields,
+    validate_vertex_classification,
+    validate_energy_model,
+)
 
-def validate_physics_fields(tiling_data):
-    """Validate that physics fields are properly set in tiling data"""
-    print("🔬 Validating Physics Fields...")
-    
-    required_fields = ["vertex_class", "local_energy", "growth_status", "flippable"]
-    missing_fields = []
-    
-    for tile in tiling_data["tiles"]:
-        for field in required_fields:
-            if field not in tile:
-                missing_fields.append(field)
-                break
-    
-    if missing_fields:
-        print(f"❌ Missing physics fields: {set(missing_fields)}")
-        return False
-    else:
-        print("✅ All physics fields present")
-        return True
-
-# In validate_week1_physics.py - FIX the vertex classification validation
-def validate_vertex_classification(tiling_data):
-    """Validate vertex classification distribution is realistic - PROCESS ALL TILES"""
-    print("🔬 Validating Vertex Classification...")
-    
-    classifier = CombinatorialVertexClassifier()
-    
-    # VALIDATION SHOULD PROCESS ALL TILES, NOT SAMPLE
-    classifications = []
-    for tile_id in range(len(tiling_data["tiles"])):  # PROCESS ALL TILES
-        if tile_id < len(tiling_data["tiles"]):
-            classification = classifier.classify_vertex_environment(tile_id, tiling_data)
-            classifications.append(classification)
-    
-    # Check distribution is realistic (not 99% defective)
-    low_count = classifications.count("LOW_ENERGY")
-    medium_count = classifications.count("MEDIUM_ENERGY") 
-    high_count = classifications.count("HIGH_ENERGY")
-    
-    total = len(classifications)
-    print(f"✅ Classification distribution: {low_count}/{total} low, {medium_count}/{total} medium, {high_count}/{total} high")
-    
-    # Realistic distribution: should have mostly low/medium energy
-    realistic = (low_count + medium_count) > total * 0.6
-    return realistic
-
-def validate_energy_model(tiling_data, energy_model):
-    """Validate energy model produces physically reasonable results"""
-    print("🔬 Validating Energy Model...")
-    
-    # Check energy ranges for sample tiles
-    sample_tiles = [0, 100, 500, 1000]
-    sample_tiles = [i for i in sample_tiles if i < len(tiling_data["tiles"])]
-    
-    energies = []
-    for tile_id in sample_tiles:
-        energy = energy_model.compute_local_energy(tile_id, tiling_data)
-        energies.append(energy)
-        vertex_class = tiling_data["tiles"][tile_id]["vertex_class"]
-        print(f"  Tile {tile_id}: {vertex_class} = {energy:.2f}")
-    
-    # Check energies are in reasonable range
-    max_expected = energy_model.params.high_energy_penalty + 0.5
-    reasonable_energies = all(0 <= e <= max_expected for e in energies)
-    
-    total_energy = energy_model.compute_total_energy(tiling_data)
-    print(f"✅ Total energy: {total_energy:.2f}")
-    print(f"✅ Energy range reasonable (0-{max_expected:.1f}): {reasonable_energies}")
-    
-    return reasonable_energies and total_energy >= 0
 
 def main():
     """Run complete energy landscape validation and logging"""
@@ -163,6 +62,15 @@ def main():
     
     # Compute energy for entire tiling
     total_energy = energy_model.compute_total_energy(tiling)
+    energy_model.update_tiling_energy(tiling)
+
+    # Mark outer boundary tiles as immobile and non-flippable 
+    # this reduce simulation effort on fixed boundaries
+    for t in tiling["tiles"]:
+        if t.get("boundary_kind") == "outer_edge":
+            t["immobile"] = True
+            t["flippable"] = False
+
     computation_time = time.time() - start_time
     
     print(f"✅ Energy computation completed: {computation_time:.2f}s")
@@ -172,10 +80,34 @@ def main():
     fields_valid = validate_physics_fields(tiling)
     coordination_valid, coord_distribution = validate_coordination_distribution(tiling)
     vertex_valid = validate_vertex_classification(tiling)
-    energy_valid = validate_energy_model(tiling, energy_model)
-    
+    energy_validation = validate_energy_model(tiling, energy_model)
+
+    # Physics-first pass/fail: energy range AND (if surface active) surface consistency
+    energy_valid = (
+        energy_validation["energy_ranges_physically_reasonable"] and
+        (energy_validation["surface_energy_consistent"] if energy_validation["surface_tension_active"] else True)
+    )
+
     # Collect comprehensive validation results
     validation_results = {
+        # --- Option A fields for EnergyLogger (prevents silent defaults in report) ---
+        "surface_tension_active": energy_validation["surface_tension_active"],
+        "boundary_tiles_detected": energy_validation["boundary_tiles_detected"],
+        "energy_class_computed": energy_validation["energy_class_computed"],
+        "has_energy_class": energy_validation["has_energy_class"],
+        "has_boundary_kind": energy_validation["has_boundary_kind"],
+        "has_missing_bonds": energy_validation["has_missing_bonds"],
+        "has_surface_energy": energy_validation["has_surface_energy"],
+
+        # (optional but extremely useful to debug future weirdness)
+        "energy_min_observed": energy_validation["min_energy_observed"],
+        "energy_max_observed": energy_validation["max_energy_observed"],
+        "energy_max_expected": energy_validation["max_expected_energy"],
+        "out_of_range_tile_ids_preview": energy_validation["out_of_range_tile_ids_preview"],
+        "inconsistent_surface_tile_ids_preview": energy_validation["inconsistent_surface_tile_ids_preview"],
+        "sample_energies": energy_validation["sample_energies"],
+
+
         "total_tiles": len(tiling["tiles"]),
         "total_energy": total_energy,
         "computation_time_seconds": computation_time,
@@ -206,6 +138,24 @@ def main():
     params_file = energy_logger.log_energy_parameters(energy_model)
     stats_file = energy_logger.log_vertex_environment_statistics(tiling)
     validation_file = energy_logger.log_energy_validation_report(validation_results, computation_time)
+    
+    # --- Physics clarity: separate bulk energy from surface contribution ---
+    mrw = float(getattr(energy_model.params, "matching_rule_weight", 1.0))
+
+    for t in tiling["tiles"]:
+        if t.get("removed", False) or t.get("obstacle_type") == "pore":
+            t["surface_contribution"] = 0.0
+            t["bulk_energy"] = 0.0
+            continue
+
+        le = float(t.get("local_energy", 0.0))
+        se = float(t.get("surface_energy", 0.0))  # unweighted
+        t["surface_contribution"] = mrw * se
+        t["bulk_energy"] = max(0.0, le - t["surface_contribution"])
+
+
+
+
     tiling_file = energy_logger.save_energy_initialized_tiling(tiling)
     
     print("\n" + "=" * 50)

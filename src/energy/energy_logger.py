@@ -23,15 +23,42 @@ class EnergyLogger:
         energy_params = {
             "timestamp": self.timestamp,
             "energy_model": "WidomInspiredQuasicrystalHamiltonian",
+            "version": "OptionA_WithSurfaceTension",
+
+            # Widom Geometric Parameters
             "vertex_energy_hierarchy": {
                 "high_energy_defect": energy_model.params.high_energy_penalty,
                 "medium_energy_strained": energy_model.params.medium_energy_penalty,
                 "low_energy_ideal": energy_model.params.low_energy_reference
             },
+
+            # Continuous Strain Parameters
             "interaction_terms": {
                 "neighbor_elastic_coupling": energy_model.params.neighbor_interaction_strength,
                 "geometric_strain_penalty": energy_model.params.geometric_strain_penalty,
                 "phason_strain_penalty": 0.0
+            },
+
+            # NEW: Surface Tension Parameters (Option A)
+            "surface_tension_parameters": {
+                "surface_tension_per_bond": energy_model.params.surface_tension_per_bond,
+                "matching_rule_weight": energy_model.params.matching_rule_weight,
+                "continuous_correction_weight": energy_model.params.continuous_correction_weight
+            },
+
+            # NEW: Classification Thresholds
+            "classification_thresholds": {
+                "energy_class_thresholds": list(energy_model.params.energy_class_thresholds),
+                "treat_ungrown_as_vacuum": energy_model.params.treat_ungrown_as_vacuum
+            },
+
+            # NEW: Physics Semantics Documentation
+            "semantic_clarification": {
+                "vertex_class": "Geometric classification (pure Widom)",
+                "energy_class": "Physics outcome (geometry + surface + strain)",
+                "boundary_kind": "Type of boundary interface",
+                "is_boundary": "Missing bonds > 0",
+                "surface_energy": "Energy from missing bonds only"
             }
         }
         
@@ -41,12 +68,24 @@ class EnergyLogger:
     def log_vertex_environment_statistics(self, tiling_data: Dict) -> str:
         """Log comprehensive vertex environment and energy statistics"""
         # Calculate distributions from actual tiling data
-        active_tiles = [t for t in tiling_data["tiles"] if not t.get("removed", False)]
+        active_tiles = [
+            t for t in tiling_data["tiles"]
+            if (not t.get("removed", False))
+            and (t.get("obstacle_type") != "pore")
+            and (t.get("growth_status") != "ungrown")   # treat vacuum as non-matter in stats
+        ]
         
         # Use adjacency graph for coordination numbers (more reliable)
         coordination_numbers = self._get_coordination_from_adjacency(tiling_data)
         vertex_classes = [tile.get("vertex_class", "UNCLASSIFIED") for tile in active_tiles]
         energies = [tile.get("local_energy", 0.0) for tile in active_tiles]
+        
+        # NEW: Collect Option A specific distributions
+        energy_classes = [tile.get("energy_class", "UNCLASSIFIED") for tile in active_tiles]
+        boundary_kinds = [tile.get("boundary_kind", "unknown") for tile in active_tiles]
+        is_boundary_flags = [tile.get("is_boundary", False) for tile in active_tiles]
+        missing_bonds_list = [tile.get("missing_bonds", 0) for tile in active_tiles]
+        surface_energies = [tile.get("surface_energy", 0.0) for tile in active_tiles]
         
         analysis = {
             "timestamp": self.timestamp,
@@ -61,16 +100,32 @@ class EnergyLogger:
             "coordination_number_distribution": dict(Counter(coordination_numbers)),
             "energy_landscape_statistics": self._calculate_energy_statistics(energies),
             "coordination_quality_metrics": self._assess_coordination_quality(coordination_numbers),
+            
+            # NEW: Option A Specific Metrics
+            "option_a_statistics": {
+                "energy_class_distribution": dict(Counter(energy_classes)),
+                "boundary_kind_distribution": dict(Counter(boundary_kinds)),
+                "boundary_tile_count": sum(is_boundary_flags),
+                "boundary_percentage": sum(is_boundary_flags) / len(active_tiles) * 100 if active_tiles else 0,
+                "missing_bonds_distribution": dict(Counter(missing_bonds_list)),
+                "surface_energy_statistics": self._calculate_energy_statistics(surface_energies),
+                "surface_energy_total": sum(surface_energies),
+                "surface_energy_per_boundary_tile": sum(surface_energies) / sum(is_boundary_flags) if sum(is_boundary_flags) > 0 else 0
+            },
+            
+            # Enhanced quality metrics
             "energy_landscape_quality": {
                 "percentage_low_energy": vertex_classes.count("LOW_ENERGY") / len(vertex_classes) * 100,
+                "percentage_low_energy_class": energy_classes.count("LOW_ENERGY") / len(energy_classes) * 100,
                 "energy_landscape_ruggedness": np.std(energies) / (np.mean(energies) + 1e-12),
-                "energy_range_adequacy": "GOOD" if max(energies) > 1.0 else "LOW_CONTRAST"
+                "energy_range_adequacy": "GOOD" if max(energies) > 1.0 else "LOW_CONTRAST",
+                "surface_tension_active": any(e > 0 for e in surface_energies)
             }
         }
         
         filepath = self._save_json("energy/vertex_environment_statistics.json", analysis)
         return filepath
-        
+            
     # src/energy/energy_logger.py - UPDATED METHOD
     def _get_coordination_from_adjacency(self, tiling_data: Dict) -> List[int]:
         """Get coordination numbers from adjacency graph - FIXED KEY HANDLING"""
@@ -144,9 +199,13 @@ class EnergyLogger:
                 typical_coord_percentage > 70.0
             ) else "POOR"
         }
-        
+            
     def log_energy_validation_report(self, validation_results: Dict, computation_time: float) -> str:
         """Log validation and performance metrics for energy calculations"""
+        sr = validation_results.get("simulation_readiness", {})
+        ready_for_healing = sr.get("ready_for_healing", sr.get("monte_carlo_ready", False))
+        ready_for_growth  = sr.get("ready_for_growth",  sr.get("growth_dynamics_ready", False))
+
         qa_report = {
             "timestamp": self.timestamp,
             "energy_computation_performance": {
@@ -157,12 +216,31 @@ class EnergyLogger:
             },
             "energy_model_validation": validation_results.get("validation_checks", {}),
             "coordination_validation": validation_results.get("coordination_validation", {}),
-            "simulation_readiness": validation_results.get("simulation_readiness", {})
+            "simulation_readiness": validation_results.get("simulation_readiness", {}),
+
+            # NEW: Option A Specific Validation
+            "option_a_validation": {
+                "surface_tension_active": validation_results.get("surface_tension_active", False),
+                "boundary_tiles_detected": validation_results.get("boundary_tiles_detected", 0),
+                "energy_class_computed": validation_results.get("energy_class_computed", False),
+                "fields_present": {
+                    "energy_class": validation_results.get("has_energy_class", False),
+                    "boundary_kind": validation_results.get("has_boundary_kind", False),
+                    "missing_bonds": validation_results.get("has_missing_bonds", False),
+                    "surface_energy": validation_results.get("has_surface_energy", False)
+                }
+            },
+
+            "overall_assessment": {
+                "physics_correctness": "OptionA_Implemented" if validation_results.get("surface_tension_active", False) else "WidomOnly",
+                "ready_for_healing": bool(ready_for_healing),
+                "ready_for_growth": bool(ready_for_growth),
+            }
         }
         
         filepath = self._save_json("energy/energy_validation_report.json", qa_report)
         return filepath
-        
+            
     def save_energy_initialized_tiling(self, tiling_data: Dict) -> str:
         """Save tiling with energy landscape initialized for simulation phases"""
         enhanced_tiling = {
@@ -208,12 +286,69 @@ class EnergyLogger:
         """Calculate skewness of energy distribution"""
         if len(data) < 2:
             return 0.0
-        data = np.array(data)
-        return float(((data - data.mean()) ** 3).mean() / (data.std() ** 3 + 1e-12))
+        arr = np.array(data)
+        return float(((arr - arr.mean()) ** 3).mean() / (arr.std() ** 3 + 1e-12))
     
     def _calculate_kurtosis(self, data: List[float]) -> float:
         """Calculate kurtosis of energy distribution"""
         if len(data) < 2:
             return 0.0
-        data = np.array(data)
-        return float(((data - data.mean()) ** 4).mean() / (data.std() ** 4 + 1e-12))
+        arr = np.array(data)
+        return float(((arr - arr.mean()) ** 4).mean() / (arr.std() ** 4 + 1e-12))
+    
+    def log_boundary_analysis(self, tiling_data: Dict) -> str:
+        """
+        Detailed boundary analysis for Option A implementation
+        """
+        active_tiles = [t for t in tiling_data["tiles"] if not t.get("removed", False)]
+
+        # Group tiles by boundary kind
+        by_boundary_kind = {}
+        for tile in active_tiles:
+            kind = tile.get("boundary_kind", "unknown")
+            if kind not in by_boundary_kind:
+                by_boundary_kind[kind] = []
+            by_boundary_kind[kind].append(tile)
+
+        # Analyze each boundary type
+        boundary_analysis = {}
+        for kind, tiles in by_boundary_kind.items():
+            energies = [t.get("local_energy", 0.0) for t in tiles]
+            missing_bonds = [t.get("missing_bonds", 0) for t in tiles]
+            surface_energies = [t.get("surface_energy", 0.0) for t in tiles]
+
+            boundary_analysis[kind] = {
+                "count": len(tiles),
+                "percentage": len(tiles) / len(active_tiles) * 100,
+                "avg_total_energy": np.mean(energies) if energies else 0,
+                "avg_missing_bonds": np.mean(missing_bonds) if missing_bonds else 0,
+                "avg_surface_energy": np.mean(surface_energies) if surface_energies else 0,
+                "energy_std": np.std(energies) if len(energies) > 1 else 0
+            }
+
+        # Calculate boundary transitions
+        analysis = {
+            "timestamp": self.timestamp,
+            "total_active_tiles": len(active_tiles),
+            "boundary_type_analysis": boundary_analysis,
+
+            # Boundary statistics
+            "boundary_statistics": {
+                "total_boundary_tiles": sum(1 for t in active_tiles if t.get("is_boundary", False)),
+                "boundary_tiles_percentage": sum(1 for t in active_tiles if t.get("is_boundary", False)) / len(active_tiles) * 100,
+                "max_missing_bonds": max(t.get("missing_bonds", 0) for t in active_tiles),
+                "avg_missing_bonds": np.mean([t.get("missing_bonds", 0) for t in active_tiles]),
+                "total_surface_energy": sum(t.get("surface_energy", 0.0) for t in active_tiles)
+            },
+
+            # Comparison with vertex_class (geometric defects)
+            "defect_comparison": {
+                "geometric_defects_high": sum(1 for t in active_tiles if t.get("vertex_class") == "HIGH_ENERGY"),
+                "energy_defects_high": sum(1 for t in active_tiles if t.get("energy_class") == "HIGH_ENERGY"),
+                "geometric_defects_medium": sum(1 for t in active_tiles if t.get("vertex_class") == "MEDIUM_ENERGY"),
+                "energy_defects_medium": sum(1 for t in active_tiles if t.get("energy_class") == "MEDIUM_ENERGY")
+            }
+        }
+
+        filepath = self._save_json("energy/boundary_analysis.json", analysis)
+        return filepath

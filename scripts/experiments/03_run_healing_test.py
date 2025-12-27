@@ -180,6 +180,15 @@ def run_experiment():
     classifier, energy_model, flip_engine = setup_simulation_components(str(cfg.config_path))
 
     initialize_seed_region(tiling, seed_radius=seed_radius, set_flippable=True)
+    
+    # Healing uses growth_status only as an "active region" marker.
+    # IMPORTANT: reserve "ungrown" for true vacuum in growth runs.
+    for tile in tiling["tiles"]:
+        if tile.get("removed", False):
+            continue
+        if tile.get("growth_status") == "ungrown":
+            tile["growth_status"] = "frozen"   # or "grown" (any non-"ungrown" label is fine)
+
 
     # ======================================================================
     # ⚡ PHASE 1: DAMAGE INJECTION (Two-Engine Protocol)
@@ -203,12 +212,17 @@ def run_experiment():
     )
     mc_damage.initialize_energy(tiling)
 
-    target_defects = num_defects
-    log(f"⚡ DAMAGE PHASE: Heating (T={T_damage}) to create {target_defects} energetic defects...", 1)
-    
     start_defects = 0
     damage_steps = 0
     check_interval = 50 # Check every 50 steps to save time
+    baseline_defects = start_defects
+    target_defects = baseline_defects + num_defects
+
+    log(f"⚡ DAMAGE PHASE: Heating (T={T_damage}) to create {target_defects} energetic defects...", 1)
+    
+
+    
+    
     
     # 2. Run Damage Loop
     while start_defects < target_defects and damage_steps < 3000:
@@ -216,18 +230,21 @@ def run_experiment():
         mc_damage.run_sweep(tiling, steps=check_interval) 
         damage_steps += check_interval
         
-        # --- CRITICAL FIX: Clear Caches Before Counting ---
-        # As per expert feedback: Ensure we scan the REAL state, not stale data.
-        wipe_all_energy_fields(tiling)
-        clear_all_caches(energy_model)
-        # --------------------------------------------------
+
         
         # Check progress (Metric: High Energy Tiles)
         start_defects = sum(
-            1 for t in tiling["tiles"] 
-            if energy_model.compute_local_energy(t["id"], tiling) > defect_threshold
+            1 for t in tiling["tiles"]
+            if t.get("flippable", False)
+            and t.get("local_energy", 0.0) > defect_threshold
+            and not t.get("is_boundary", False)   # bulk-only for “healable” defects
         )
-        
+                        
+        # Wipe energy fields 
+        wipe_all_energy_fields(tiling)
+        clear_all_caches(energy_model)
+        # --------------------------------------------------
+
         log(f"   🔥 Heating Step {damage_steps}: High-Energy Tiles={start_defects} (Target: {target_defects})", 1)
 
     if start_defects == 0:
@@ -386,9 +403,10 @@ def run_experiment():
     wipe_all_energy_fields(tiling)
     clear_all_caches(energy_model)
     
+    # (active-only, consistent with start_defects)
     defects_end = sum(
         1 for t in tiling["tiles"]
-        if energy_model.compute_local_energy(t["id"], tiling) > defect_threshold
+        if t.get("flippable", False) and energy_model.compute_local_energy(t["id"], tiling) > defect_threshold
     )
 
     # 2. Link Start Variable

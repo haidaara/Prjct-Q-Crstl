@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-12-23T18:17:06.904662",
+  "timestamp": "2025-12-27T16:23:29.771569",
   "tiling_reference": {
     "total_tiles": 4406,
     "active_tiles": 4406,
@@ -19,14 +19,14 @@
     "4": 4183
   },
   "energy_landscape_statistics": {
-    "total_configurational_energy": 307.85499999209543,
-    "average_energy_per_tile": 0.06987176577215057,
-    "energy_standard_deviation": 0.19682852221358182,
+    "total_configurational_energy": 561.9274999960477,
+    "average_energy_per_tile": 0.1275368815242959,
+    "energy_standard_deviation": 0.5259003271274596,
     "min_energy_observed": 0.0,
-    "max_energy_observed": 2.135333333333333,
-    "energy_variance": 0.03874146715678247,
-    "energy_skewness": 7.727031528870751,
-    "energy_kurtosis": 67.40278609347445
+    "max_energy_observed": 5.0,
+    "energy_variance": 0.276571154072769,
+    "energy_skewness": 5.767891695164212,
+    "energy_kurtosis": 39.05475407746271
   },
   "coordination_quality_metrics": {
     "has_isolated_tiles": false,
@@ -35,9 +35,42 @@
     "percentage_typical_coordination": 97.38992283250113,
     "coordination_distribution_quality": "GOOD"
   },
+  "option_a_statistics": {
+    "energy_class_distribution": {
+      "HIGH_ENERGY": 126,
+      "MEDIUM_ENERGY": 97,
+      "LOW_ENERGY": 4183
+    },
+    "boundary_kind_distribution": {
+      "outer_edge": 223,
+      "bulk": 4183
+    },
+    "boundary_tile_count": 223,
+    "boundary_percentage": 5.061280072628234,
+    "missing_bonds_distribution": {
+      "2": 103,
+      "1": 108,
+      "3": 12,
+      "0": 4183
+    },
+    "surface_energy_statistics": {
+      "total_configurational_energy": 350.0,
+      "average_energy_per_tile": 0.07943713118474807,
+      "energy_standard_deviation": 0.369083529648467,
+      "min_energy_observed": 0.0,
+      "max_energy_observed": 3.0,
+      "energy_variance": 0.13622265185777083,
+      "energy_skewness": 5.014190327696211,
+      "energy_kurtosis": 28.768912332919594
+    },
+    "surface_energy_total": 350.0,
+    "surface_energy_per_boundary_tile": 1.5695067264573992
+  },
   "energy_landscape_quality": {
     "percentage_low_energy": 97.88924194280526,
-    "energy_landscape_ruggedness": 2.816996536950503,
-    "energy_range_adequacy": "GOOD"
+    "percentage_low_energy_class": 94.93871992737176,
+    "energy_landscape_ruggedness": 4.123515651612914,
+    "energy_range_adequacy": "GOOD",
+    "surface_tension_active": true
   }
 }

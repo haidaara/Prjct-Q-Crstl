@@ -80,7 +80,18 @@ class CombinatorialVertexClassifier:
         for neighbor_id in neighbor_ids:
             neighbor_id_int = int(neighbor_id)
             if 0 <= neighbor_id_int < len(tiling_data["tiles"]):
-                neighbors.append(tiling_data["tiles"][neighbor_id_int])
+                n = tiling_data["tiles"][neighbor_id_int]
+        
+                # Skip inactive / vacuum neighbors (match energy model semantics)
+                if n.get("removed", False): 
+                    continue
+                if n.get("obstacle_type") == "pore":
+                    continue
+                if n.get("growth_status") == "ungrown":
+                    continue
+                
+                neighbors.append(n)
+        
         
         return neighbors
     
