@@ -37,7 +37,7 @@ def main():
     output_dir = output_file.parent
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    viz.plot_tiling(tiling_data, save_path=output_dir / "penrose_tiling.png")
+    viz.plot_tiling(tiling_data, save_path=str(output_dir / "penrose_tiling.png"))
     
     # Export data for future phases
     if config.exports.get("format") == "json":

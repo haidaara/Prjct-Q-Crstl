@@ -52,11 +52,21 @@ fixed_defect = "#f39c13"               # Color for fixed defects
 # 4) PHYSICS / ENERGY MODEL (used by 03/04; must match src logic)
 # ---------------------------------------------------------------------
 [energy]
-high_energy_penalty = 2.0              # Penalty for high-energy/defect vertex class
-medium_energy_penalty = 1.0            # Penalty for strained/medium-energy class
-low_energy_reference = 0.0             # Baseline for ideal/low-energy class
-neighbor_interaction_strength = 0.1    # Coupling strength to neighbor interactions
-geometric_strain_penalty = 0.2         # Extra penalty for geometric strain
+# Base Widom Map
+high_energy_penalty = 2.0
+medium_energy_penalty = 1.0
+low_energy_reference = 0.0
+
+# Corrections
+neighbor_interaction_strength = 0.1
+geometric_strain_penalty = 0.2
+
+# [NEW] Surface Tension Physics
+surface_tension_per_bond = 1.0
+matching_rule_weight = 1.0
+continuous_correction_weight = 0.5
+energy_class_thresholds = [0.5, 1.5]
+
 
 # ---------------------------------------------------------------------
 # 5) MONTE CARLO DYNAMICS (03 uses steps/R; 04 uses temperature/base_steps)
@@ -127,7 +137,7 @@ tiling_path = "data/processed/penrose_tiling_energy_initialized.json"  # Canonic
 output_dir = "data/experiments/healing" # Output dir for healing runs
 seed_radius = 10.0                     # Seed region radius for defect insertion
 num_defects = 15                       # Number of defects to inject
-defect_threshold = 1.5                 # Threshold used by defect finder/classifier
+defect_threshold = 1.5               # Threshold used by defect finder/classifier
 # Robust continuous schedule: Damage(5.0) -> Liquid -> Glass -> Freeze(0.05)
 annealing_schedule = [5.0, 2.5, 1.2, 0.6, 0.3, 0.15, 0.05]
 # ---------------------------------------------------------------------

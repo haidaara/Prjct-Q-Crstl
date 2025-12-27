@@ -45,29 +45,41 @@ def extract_topology(tiling_data: Dict[str, Any]) -> Optional[Dict[int, List[int
             
     return normalized_adj
 
+# src/viz/utils.py
+
 def extract_physics_fields(tiling_data: Dict[str, Any]) -> Tuple[Dict[int, float], Dict[int, str]]:
     """
-    Safely extracts energy and class fields with type sanitation.
+    Extract energy and classification maps.
+    Refined: Prefers 'energy_class' (Physics) over 'vertex_class' (Geometry) for visualization.
     """
     energy_map = {}
     class_map = {}
     
     for i, tile in enumerate(tiling_data["tiles"]):
+        # Robust ID extraction
         tid = int(tile.get("id", i))
         
-        # Energy Hygiene: Force float or NaN
-        val = tile.get("local_energy")
+        # 1. Extract Energy
         try:
-            if val is not None:
-                energy_map[tid] = float(val)
-            else:
-                energy_map[tid] = np.nan
+            val = tile.get("local_energy", 0.0)
+            energy_map[tid] = float(val)
         except (ValueError, TypeError):
-             energy_map[tid] = np.nan
+            energy_map[tid] = 0.0
             
-        # Class Hygiene
-        cls = tile.get("vertex_class")
-        class_map[tid] = str(cls) if cls else "UNKNOWN"
+        # 2. Extract Class (Prefer Energy Class for Viz)
+        # # This makes the "Red Corona" visible in Panel 3
+        if "energy_class" in tile:
+            cls = tile["energy_class"]
+        #revert to this if no energy class
+        # else:
+        #     cls = tile.get("vertex_class", "UNKNOWN")
+
+        # uncomment: to show geometric class instead of energy class
+        #  Healing/order parameter must be geometric
+        #cls = tile.get("vertex_class", tile.get("energy_class", "UNKNOWN"))
+
+            
+        class_map[tid] = str(cls)
             
     return energy_map, class_map
 

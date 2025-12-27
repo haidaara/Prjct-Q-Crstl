@@ -4,7 +4,7 @@ Research-grade Penrose P3 tiling generator - FIXED VERSION
 FIXED: Proper neighbor list synchronization with adjacency graph
 """
 
-from pynrose import Tiling, Grid, Vector, RhombusType
+from pynrose import Tiling, Grid, Vector, RhombusType # type: ignore
 from collections import defaultdict
 from src.utils.config import ConfigManager
 
@@ -107,7 +107,7 @@ class PenroseTiling:
                 # WEEK 1 PHYSICS FIELDS:
                 "vertex_class": "LOW_ENERGY",
                 "local_energy": 0.0,
-                "growth_status": "ungrown",
+                "growth_status": "grown",
                 "flippable": True
             }
             

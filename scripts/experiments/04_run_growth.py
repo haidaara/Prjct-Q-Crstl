@@ -27,9 +27,11 @@ def short_path(p) -> str:
         return str(Path(*parts[-4:])) if len(parts) > 4 else str(p)
 
 
-def load_config(config_path: str = "configs/phase2_experiments.toml") -> dict:
+from typing import Union
+
+def load_config(config_path: Union[str, Path] = "configs/phase2_experiments.toml") -> dict:
     """Load experiment configuration from TOML"""
-    config_path = Path(config_path)
+    config_path = Path(str(config_path))
     if not config_path.exists():
         print(f"❌ Config file not found: {config_path}")
         sys.exit(1)
@@ -60,7 +62,9 @@ def next_run_id(folder: Path) -> int:
 def overwrite_latest(run_file: Path, latest_path: Path) -> None:
     shutil.copyfile(run_file, latest_path)
 
-def find_obstacle_file(obstacle_type: str, density: float) -> Path:
+from typing import Optional
+
+def find_obstacle_file(obstacle_type: str, density: float) -> Optional[Path]:
     """Find obstacle file with flexible naming"""
     base_path = Path("data/obstacles")
 
@@ -93,7 +97,9 @@ def find_obstacle_file(obstacle_type: str, density: float) -> Path:
 
     return None
 
-def run_growth_experiment(config: dict, experiment_name: str = None):
+from typing import Optional
+
+def run_growth_experiment(config: dict, experiment_name: Optional[str] = None):
     """Run a single growth experiment"""
 
     debug = config.get("debug", {})
@@ -258,16 +264,52 @@ def run_growth_experiment(config: dict, experiment_name: str = None):
 
         tiling_data, new_tiles, mc_stats = growth_sim.grow_step(tiling_data, obstacles={})
 
-        mc_engine.energy_model.update_tiling_energy(tiling_data)
+        energy_model.update_tiling_energy(tiling_data)
+        
+        # --- METRIC REFINEMENT ---
+        # Get threshold from config
+        defect_thresh = config.get("healing", {}).get("defect_threshold", 1.5)
+        
+        # Filter for "Grown" tiles (Active region)
+        grown_tiles = [
+            t for t in tiling_data["tiles"] 
+            if t.get("growth_status") in ["grown", "frontier", "seed"] 
+            and not t.get("removed", False)
+        ]
+        
+        # 1. Total Defects (Energy Based)
+        total_defects = sum(1 for t in grown_tiles if t.get("local_energy", 0.0) > defect_thresh)
+        
+        # 2. Bulk Defects (Geometric Violations Only) - HEALABLE
+        # We use the original vertex_class here or the is_boundary flag
+        bulk_defects = sum(1 for t in grown_tiles 
+                           if t.get("local_energy", 0.0) > defect_thresh 
+                           and not t.get("is_boundary", False))
+        
+        # 3. Surface Defects (Topology) - IRREDUCIBLE at edges
+        surface_defects = sum(1 for t in grown_tiles 
+                              if t.get("local_energy", 0.0) > defect_thresh 
+                              and t.get("is_boundary", False))
+
+        step_metrics = {
+            "step": step + 1,
+            "new_tiles": len(new_tiles),
+            "total_energy": mc_engine.current_energy,
+            "defect_count": total_defects,      # The raw count (will look high)
+            "bulk_defects": bulk_defects,       # The healable count (should go down)
+            "surface_defects": surface_defects, # The boundary cost
+            "acceptance_rate": mc_stats.get("acceptance_rate", 0.0),
+            # ...
+        }
         
         step_metrics = {
             "step": step + 1,
             "new_tiles": len(new_tiles),
-            # ... rest of dict ...
             "acceptance_rate": mc_stats.get("acceptance_rate", 0.0),
             "delta_mean": mc_stats.get("delta_mean"),
             "delta_std": mc_stats.get("delta_std"),
-            "positive_ratio": mc_stats.get("positive_ratio")
+            "positive_ratio": mc_stats.get("positive_ratio"),   
+            "total_energy": mc_engine.current_energy
         }
 
         grown_tiles = [t for t in tiling_data['tiles']
@@ -350,7 +392,7 @@ def run_growth_experiment(config: dict, experiment_name: str = None):
             
             # Use 'tiling_data' which is available in your script
             plot_physics_matrix(tiling_data, save_path=str(viz_path))
-            print(f"   📊 Saved Plot: {short_path(viz_path)}")
+            
         except Exception as e:
             print(f"   ⚠️ Visualization failed: {e}")
             # import traceback; traceback.print_exc()
