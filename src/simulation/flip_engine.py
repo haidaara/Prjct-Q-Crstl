@@ -172,6 +172,7 @@ class FlipEngine:
                 "type": tile["type"],
                 "vertex_class": tile.get("vertex_class"),
                 "local_energy": tile.get("local_energy"),
+                "phason_energy": tile.get("phason_energy"),
                 "neighbors": tile.get("neighbors", [])[:],
                 "vertices": [v[:] for v in tile["vertices"]],
                 "center": tile["center"][:],
@@ -200,9 +201,10 @@ class FlipEngine:
             tiling_data["adjacency_graph"][key] = neighbors
         
         # Explicitly clear cache for these tiles to ensure consistency
-        if hasattr(self.energy_model, '_vertex_class_cache'):
-            for tile_id in undo_info["tile_states"]:
-                self.energy_model._vertex_class_cache.pop(tile_id, None)
+        # Clear energy-model caches for restored tiles (vertex + phason)
+        if hasattr(self.energy_model, "clear_cache"):
+            self.energy_model.clear_cache(tile_ids=list(undo_info["tile_states"].keys()))
+
 
     def apply_flip(self, cluster_ids: List[int], tiling_data: Dict) -> bool:
         """Apply phason flip"""
@@ -288,10 +290,9 @@ class FlipEngine:
         four_ring = self._get_k_ring_neighborhood(list(tile_ids), tiling_data, k=4)
         
         # Clear cache for 4-ring
-        if hasattr(self.energy_model, '_vertex_class_cache'):
-            cache = self.energy_model._vertex_class_cache
-            for tile_id in four_ring:
-                cache.pop(tile_id, None)
+        if hasattr(self.energy_model, "clear_cache"):
+            self.energy_model.clear_cache(tile_ids=list(four_ring))
+
         
         # Recompute for original region (3-ring)
         for tile_id in tile_ids:

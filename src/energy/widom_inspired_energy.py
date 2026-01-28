@@ -6,10 +6,12 @@ OPTIMIZED VERSION: Vertex class caching for performance
 
 import numpy as np
 import math
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, List 
 from dataclasses import dataclass
 
 from src.utils.config import ConfigManager
+from src.energy.phason_strain import PhasonStrainCalculator
+
 
 
 @dataclass 
@@ -33,6 +35,15 @@ class EnergyParameters:
     energy_class_thresholds: Tuple[float, float] = (0.5, 1.5)
 
     treat_ungrown_as_vacuum: bool = False   # Safer default; set to True only for growth
+
+    # --- Phason strain (Option A-lite) ---
+    phason_enabled: bool = False
+    phason_calibration_file: str = "configs/phason_calibration.json"
+    phason_stiffness: float = 0.3
+    phason_weight: float = 0.5
+    phason_degree_normalize: bool = True
+    phason_cache_max: int = 200_000
+
 
 class WidomInspiredEnergy:
     """
@@ -63,75 +74,58 @@ class WidomInspiredEnergy:
         
         # PERFORMANCE OPTIMIZATION: Vertex class cache
         self._vertex_class_cache = {}
-    
+
+        self.phason_calculator = None
+        if self.params.phason_enabled:
+            self.phason_calculator = PhasonStrainCalculator.from_calibration_file(
+                self.params.phason_calibration_file,
+                stiffness=self.params.phason_stiffness,
+                max_cache_size=self.params.phason_cache_max,
+            )
+
+        
     def _compute_surface_energy(self, tile_id: int, tiling_data: Dict) -> Tuple[float, int, bool]:
         """
-        Calculate surface tension energy (broken bonds).
-        Treats 'Ungrown', 'Removed', and 'Pore' as vacuum.
-        Returns: (Energy, Missing_Bonds_Count, Is_Boundary_Bool)
+        Surface tension energy from broken bonds.
+        Treats 'Removed'/'Pore' as vacuum, and optionally 'Ungrown' as vacuum.
+        Returns: (surface_energy, missing_bonds, is_boundary)
         """
         tile = tiling_data["tiles"][tile_id]
-        adj = tiling_data.get("adjacency_graph", {})
         tiles = tiling_data["tiles"]
-        
-        # Handle string/int key mismatch safely, with fallback to tile's own neighbor list
-        neighbors = adj.get(str(tile_id)) or adj.get(tile_id, []) or tile.get("neighbors", [])
-        
-        active_count = 0
+        neighbors = tile.get("neighbors", [])
+        neighbors_full = tile.get("neighbors_full", neighbors)
+        expected = 4
+        missing_bonds = expected - len(neighbors)
+        is_boundary = missing_bonds > 0
+        energy = (self.params.surface_tension_per_bond * missing_bonds) if is_boundary else 0.0
         inactive_removed_or_pore = 0
         inactive_ungrown = 0
-        
-        
-        for nid in neighbors:
-            try:
-                # Robust index conversion
-                n_idx = int(nid)
-                if n_idx < 0 or n_idx >= len(tiles): continue
-                n_tile = tiles[n_idx]
-            except (ValueError, IndexError, TypeError):
-                continue
-            
-            # 1. Vacuum Check: Removed or Pore
-            if n_tile.get("removed", False) or n_tile.get("obstacle_type") == "pore":
-                inactive_removed_or_pore += 1  # FIX: COUNT INACTIVE
-                continue
-                        
-            # 2. Growth Front Check
-            # If treat_ungrown_as_vacuum=True, ungrown tiles behave as vacuum (surface bonds are broken).
-            # If False, ungrown tiles are treated as solid neighbors for surface counting.
-            if n_tile.get("growth_status") == "ungrown":
-                if self.params.treat_ungrown_as_vacuum:
-                    inactive_ungrown += 1
-                    continue
-                # else: count as active neighbor (no broken bond)
-            
-            
-            active_count += 1
-        
-        # Penrose Rhombus always has 4 edges -> Ideal coordination is 4
-        expected = 4
-        missing_bonds = max(0, expected - active_count)
-        
-        energy = missing_bonds * self.params.surface_tension_per_bond
-        is_boundary = missing_bonds > 0
-        
-        # Classify Boundary Type
+        # Count inactive neighbors using ORIGINAL topology
+        for nb in neighbors_full:
+            nt = tiles[int(nb)]
+            if nt.get("removed", False) or nt.get("obstacle_type") == "pore":
+                inactive_removed_or_pore += 1
+            elif self.params.treat_ungrown_as_vacuum and nt.get("growth_status") != "grown":
+                inactive_ungrown += 1
+        # Robust outer-edge inference
+        is_outer = tile.get("is_outer_edge", None)
+        if is_outer is None:
+            is_outer = (len(neighbors_full) < expected)
+            tile["is_outer_edge"] = is_outer
         if is_boundary:
             if inactive_ungrown > 0:
-                boundary_kind = "growth_front"  # Interface with vacuum
+                boundary_kind = "growth_front"
             elif inactive_removed_or_pore > 0:
-                boundary_kind = "pore_edge"     # Interface with obstacle
+                boundary_kind = "pore_edge"
             else:
-                boundary_kind = "outer_edge"    # Interface with window boundary
+                boundary_kind = "outer_edge" if is_outer else "pore_edge"
         else:
-            boundary_kind = "bulk"  # FIX: Explicitly set for non-boundary tiles
-        
-        # Store directly on tile for Viz/Metrics
+            boundary_kind = "bulk"
         tile["boundary_kind"] = boundary_kind
-        tile["surface_energy"] = energy  # Store for debugging/metrics
-
-
+        tile["surface_energy"] = energy
         return energy, missing_bonds, is_boundary
+
+    
 
     def compute_local_energy(self, tile_id: int, tiling_data: Dict) -> float:
         """
@@ -150,6 +144,11 @@ class WidomInspiredEnergy:
             tile["boundary_kind"] = "bulk"
             tile["missing_bonds"] = 0
             tile["surface_energy"] = 0.0
+            tile["phason_energy"] = 0.0
+            tile["surface_contribution"] = 0.0
+            tile["bulk_energy"] = 0.0
+
+
             return 0.0
         
         # CRITICAL FIX: Ungrown tiles as vacuum (prevents ghost energy)
@@ -161,6 +160,8 @@ class WidomInspiredEnergy:
             tile["missing_bonds"] = 0
             tile["surface_energy"] = 0.0
             tile["vertex_class"] = "LOW_ENERGY"  # Also set geometric class
+            tile["phason_energy"] = 0.0
+
             return 0.0
 
         
@@ -176,13 +177,25 @@ class WidomInspiredEnergy:
         E_neighbor = self._compute_continuous_neighbor_interaction(tile_id, tiling_data)
         E_strain = self._compute_continuous_geometric_strain(tile_id, tiling_data)
         E_continuous = E_neighbor + E_strain
+
+        E_phason = 0.0
+        if self.phason_calculator is not None:
+            E_phason = self.phason_calculator.compute_energy_for_tile(
+                tile_id,
+                tiling_data,
+                normalize_by_degree=self.params.phason_degree_normalize,
+                treat_ungrown_as_vacuum=self.params.treat_ungrown_as_vacuum,
+            )
+
         
         # 4. TOTAL WEIGHTED ENERGY
         total_energy = (
-            E_widom + 
+            E_widom +
             (self.params.matching_rule_weight * E_surface) +
-            (self.params.continuous_correction_weight * E_continuous)
+            (self.params.continuous_correction_weight * E_continuous) +
+            (self.params.phason_weight * E_phason)
         )
+
         
         # 5. STATE UPDATE (Clean Semantics)
         tile["local_energy"] = total_energy
@@ -190,7 +203,9 @@ class WidomInspiredEnergy:
         tile["surface_energy"] = E_surface   # Explicit for debugging
         tile["missing_bonds"] = missing_bonds
         tile["is_boundary"] = is_boundary
-        
+        tile["phason_energy"] = E_phason
+
+
         # 6. ENERGY CLASS (For Visualization)
         # Classifies the *Resulting* Physics (Red Boundary comes from here)
         low_thresh, high_thresh = self.params.energy_class_thresholds 
@@ -200,8 +215,23 @@ class WidomInspiredEnergy:
             tile["energy_class"] = "MEDIUM_ENERGY"
         else:
             tile["energy_class"] = "LOW_ENERGY"
+
+        tile["surface_contribution"] = float(self.params.matching_rule_weight * E_surface)
+        tile["bulk_energy"] = float(total_energy - tile["surface_contribution"])
+
             
         return total_energy
+
+    def clear_cache(self, tile_ids: Optional[List[int]] = None):
+        if tile_ids is None:
+            self._vertex_class_cache.clear()
+        else:
+            for tid in tile_ids:
+                self._vertex_class_cache.pop(int(tid), None)
+
+        if self.phason_calculator is not None:
+            self.phason_calculator.clear_cache(tile_ids)
+
 
     def _get_cached_vertex_class(self, tile_id: int, tiling_data: Dict) -> str:
         """
@@ -302,13 +332,4 @@ class WidomInspiredEnergy:
                 self.compute_local_energy(tile_id, tiling_data)
         return tiling_data
 
-    def clear_cache(self):
-        # clear whatever you actually have
-        if hasattr(self, "_vertex_class_cache"):
-            self._vertex_class_cache.clear()
-        if hasattr(self, "_local_energy_cache"):
-            self._local_energy_cache.clear()
 
-         # Force garbage collection for good measure
-        import gc
-        gc.collect()

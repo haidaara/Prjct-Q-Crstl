@@ -1,0 +1,48 @@
+[run]
+input = "data/obstacles/pores/pores_density_0.1.json"
+output_dir = "data/experiments/obstacle_healing"
+run_name = "run_001"
+seed = 123
+
+[logging]
+mode = "debug"      # only: "normal" or "debug"
+print_every = 50
+trace_every = 50
+
+[obstacles]
+mode = "pores"       # "pores" or "fixed_defects"
+
+[regions]
+annulus_inner = 2.0
+annulus_outer = 16.0
+relative_to_obstacle_radius = true
+active_buffer = 22.0
+fixed_k = 2
+fixed_active_k = 3
+
+[defects]
+threshold = 1.5
+
+[damage]
+enabled = true
+target_defects = 15      # interpreted as ADDITIONAL defects above baseline
+temperature = 5.0
+max_steps = 500
+check_every = 50
+print_every = 50
+
+[anneal]
+schedule = [
+  {T = 5.0,  steps = 100, name = "T5.0"},
+  {T = 2.5,  steps = 200, name = "T2.5"},
+  {T = 1.2,  steps = 200, name = "T1.2"},
+  {T = 0.6,  steps = 200, name = "T0.6"},
+  {T = 0.3,  steps = 200, name = "T0.3"},
+  {T = 0.15, steps = 200, name = "T0.15"},
+  {T = 0.1,  steps = 200, name = "T0.1"},
+]
+metrics_every = 10
+snapshot_every = 50
+verify_every = 50
+initial_T = 0.3
+neighborhood_radius = 3

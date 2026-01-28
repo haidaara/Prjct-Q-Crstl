@@ -43,6 +43,11 @@ class ObstacleCreator:
         
         # Deep copy with efficient serialization
         modified_tiling = self._fast_deep_copy(tiling_data)
+
+        # Preserve original topology BEFORE pores remove links
+        for tile in modified_tiling["tiles"]:
+            tile.setdefault("neighbors_full", list(tile.get("neighbors", [])))
+
         
         # CRITICAL: Initialize ALL physics fields consistently
         for tile in modified_tiling["tiles"]:
@@ -106,8 +111,10 @@ class ObstacleCreator:
             if removed_mask[i]:
                 tile["removed"] = True
                 tile["obstacle_type"] = "pore"
+                tile["growth_status"] = "removed"  #(or "ungrown")
                 # CRITICAL: Pores should not participate in energy calculations
-                tile["vertex_class"] = "PORE"
+                tile["vertex_class"] = "LOW_ENERGY"
+                tile["energy_class"] = "LOW_ENERGY"
                 tile["local_energy"] = 0.0
                 tile["flippable"] = False
                 removed_count += 1
@@ -121,7 +128,14 @@ class ObstacleCreator:
         tiles = tiling_data["tiles"]
     
         # Sample every nth tile for deterministic placement
-        active_indices = [i for i, t in enumerate(tiles) if not t.get("removed", False)]
+        active_indices = [
+            i for i, t in enumerate(tiles)
+            if (not t.get("removed", False))
+            and t.get("flippable", True)
+            and (not t.get("immobile", False))
+            and len(t.get("neighbors_full", t.get("neighbors", []))) == 4  # exclude outer boundary
+        ]
+
         n_target = max(1, int(round(spec.density * len(active_indices))))
     
         if n_target > len(active_indices):
@@ -136,6 +150,8 @@ class ObstacleCreator:
             tiles[idx]["obstacle_type"] = "fixed_defect"
             # CRITICAL: Fixed defects can have energy but cannot flip
             tiles[idx]["flippable"] = False
+            tiles[idx]["growth_status"] = "grown"  # ensures it never becomes “vacuum” if treat_ungrown_as_vacuum flips
+
     
         defects_created = len(chosen_indices)
         print(f"   → Created {defects_created} fixed defects (target: {n_target})")
@@ -164,13 +180,17 @@ class ObstacleCreator:
                 
         # Update tile neighbor lists
         for i, tile in enumerate(tiles):
+            # NEW: preserve original neighbor ids before pruning (for truthful diagnostics/classification)
+            tile.setdefault("neighbors_full", [int(n) for n in tile.get("neighbors", [])])
+
             if removed_mask[i]:
                 tile["neighbors"] = []  # Critical: removed tiles have no neighbors
             else:
                 tile["neighbors"] = [
-                    int(n) for n in tile["neighbors"]
+                    int(n) for n in tile["neighbors_full"]
                     if not removed_mask[self._id_to_index[int(n)]]
                 ]
+
                 
     def _fast_deep_copy(self, data: Dict) -> Dict:
         """Optimized deep copy preserving integer keys"""
