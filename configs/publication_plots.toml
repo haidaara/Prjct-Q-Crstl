@@ -1,3 +1,4 @@
+
 # configs/publication_plots.toml
 # Visualization configuration for Quasi-Phason project
 
@@ -14,30 +15,68 @@ title_size = 12
 label_size = 10
 
 [lines]
-line_width = 1.2
+line_width = 0.5
 marker_size = 4
 
-[figure]
-default_figsize = [6.5, 4.0]
-matrix_figsize = [18, 18]
-grid_figsize = [22, 14]
+# [figure]
+# default_figsize = [6.5, 4.0]
+# matrix_figsize = [18, 18]
+# grid_figsize = [22, 14]
 
 [paths]
-output_dir = "data/publication/plots"
+output_dir = "data/viz/"
+
+
 
 [viz_jobs]
 enabled = true
 
-# Default parameters
+# what to draw
+view = "energy"          # aliases allowed: "energy_local", "local_energy", "phason_strain"
+
+# change/drift robustness
+compare_position_threshold = 0.01
+
+# defects view
 defect_threshold = 1.5
-energy_percentile = [5, 95]
+
+# scaling controls used by panels/movie
+energy_percentile = [5, 99.8]
 strain_percentile = [5, 95]
+energy_vmin = 0.0
+energy_vmax = 3.0
+energy_gamma = 0.25
+
+# forced strain scale for movie comparability
+strain_vmin = 0.0
+strain_vmax = 0.3  # Matches our actual max strain (0.15)
+
 treat_immobile_as_fixed = false
+
+# movie defaults (so you don't need CLI / job duplication)
+fps = 3
+format = "png"
+movie_view = "strain"
+n_frames = 12
+ncols = 4
+
+# movie-frame stability controls (used after Patch A)
+# movie_figsize = [8, 8]
+movie_dpi = 200
+movie_title = true
+
+enabled_plots = ["pair", "triptych", "change_panel", "phason_drift_series"]
+
+matrix_2x2_panels = ["geometry","energy","class","growth"]
+
+
+
+
 
 # IMPORTANT PLOTS - Individual toggles
 [viz_jobs.plots_enabled]
 matrix_2x2 = true
-grid_3x3 = true
+grid_3x3 = false
 diffraction = true
 vertex_dist = true
 radial_defects = true
@@ -54,6 +93,8 @@ defect_density_by_distance = true
 storyboard = true
 movie = true
 
+
+
 # GROUP TOGGLES - Less critical plot groups
 [viz_jobs.groups_enabled]
 dashboards = true
@@ -65,33 +106,77 @@ individual_panels = true
 [[viz_jobs.jobs]]
 kind = "state"
 input = "data/processed/penrose_tiling_energy_initialized.json"
-outdir = "data/viz/"
+outdir = "data/viz/state/"
+matrix_2x2_panels = ["geometry","energy","strain","fft"]
 
 [[viz_jobs.jobs]]
 kind = "compare"
-baseline = "data/baseline.json"
-damaged = "data/damaged.json"
-healed = "data/healed.json"
-view = "energy"
+baseline = "data/experiments/obstacle_healing/run_003/snapshots/snapshot_0000_baseline.json"
+# damaged = "data/experiments/obstacle_healing/run_001/snapshots/snapshot_0000_baseline.json"
+healed = "data/experiments/obstacle_healing/run_003/snapshots/snapshot_3400_final.json"
+view = "strain"              # or "strain",
 outdir = "data/viz/compare"
 
 [[viz_jobs.jobs]]
 kind = "movie"
-snapshot_dir = "data/experiments/obstacle_healing/run_001/snapshots"
-view = "strain"
-fps = 12
-outdir = "data/viz/movies"
+snapshot_dir = "data/experiments/obstacle_healing/run_006_1260_steps_damage15/snapshots"
+movie_view = "strain"
+# outdir = "data/viz/movies/run_006_1260_steps_damage15/"
+
+# override defaults job: 
+strain_vmin = 0.0
+strain_vmax = 0.3  # Matches our actual max strain (0.15)
+
+# [[viz_jobs.jobs]]
+# kind = "movie"
+# snapshot_dir = "data/experiments/obstacle_healing/run_006_1260_steps_damage15/snapshots"
+# movie_view = "energy"
+# outdir = "data/viz/movies/run_006_1260_steps_damage15/"
+
+# # Overrides only for this job: instead of the defaults jobs runner: 
+# movie_dpi = 300
+# energy_vmin = 0.0
+# energy_vmax = 3.0
+# energy_gamma = 0.5
+
+
+# [[viz_jobs.jobs]]
+# kind = "movie"
+# snapshot_dir = "data/experiments/obstacle_healing/run_006_1260_steps_damage15/snapshots"
+# movie_view = "matrix_2x2"
+# # outdir = "data/viz/movies/run_006_1260_steps_damage15/"
+
+# matrix_2x2_panels = ["geometry","energy","strain","fft"]
+# # movie_figsize = [14, 14]
+# # movie_dpi = 250
 
 [[viz_jobs.jobs]]
-kind = "storyboard"
-snapshot_dir = "data/experiments/obstacle_healing/run_001/snapshots"
-view = "energy"
-n_frames = 12
-ncols = 4
-outdir = "data/viz/storyboards"
+kind = "movie"
+snapshot_dir = "data/experiments/obstacle_healing/run_007_5800_steps_damage15/snapshots/"
+movie_view = "matrix_2x2"
+# outdir = "data/viz/movies/run_006_1260_steps_damage15/"
+
+matrix_2x2_panels = ["geometry","energy","strain","fft"]
+
+# [[viz_jobs.jobs]]
+# kind = "movie"
+# snapshot_dir = "data/experiments/obstacle_healing/run_001/snapshots"
+# movie_view = "energy"
+# outdir = "data/viz/movies"
+# energy_gamma = 0.5
+
+# [[viz_jobs.jobs]]
+# kind = "storyboard"
+# snapshot_dir = "data/experiments/obstacle_healing/run_003/snapshots"
+# movie_view = "energy"
+# outdir = "data/viz/storyboards"
 
 [[viz_jobs.jobs]]
 kind = "spatial"
-input = "data/experiments/obstacle_healing/run_001/snapshots/snapshot_0001_damaged.json"
+input = "data/experiments/obstacle_healing/run_003/snapshots/snapshot_0001_damaged.json"
 bin_edges = [0, 2, 4, 6, 8, 10]
 outdir = "data/viz/spatial"
+
+[viz_config.strain_limits]
+min = 0.0
+max = 0.2  # Matches your actual max strain (0.15)

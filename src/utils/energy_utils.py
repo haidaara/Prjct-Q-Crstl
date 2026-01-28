@@ -2,15 +2,30 @@
 """
 Utilities for consistent energy computation and cache management
 """
-
+import os
 import numpy as np
 from typing import Dict, List, Set
 
 def wipe_all_energy_fields(tiling_data: Dict) -> None:
-    """Remove all stored energy fields to force fresh computation"""
+    """Remove all stored energy/diagnostic fields to force fresh computation"""
+    keys = [
+        "local_energy",
+        "vertex_class",
+        "energy_class",
+        "missing_bonds",
+        "surface_energy",
+        "surface_contribution",
+        "bulk_energy",
+        "phason_energy",
+        "strain",
+        "is_boundary",
+        "boundary_kind",
+        "is_outer_edge",
+    ]
     for tile in tiling_data["tiles"]:
-        tile.pop("local_energy", None)
-        tile.pop("vertex_class", None)
+        for k in keys:
+            tile.pop(k, None)
+
 
 def clear_all_caches(energy_model) -> None:
     # 1) model method
@@ -52,12 +67,28 @@ def get_k_ring_neighborhood(tile_ids: List[int], tiling_data: Dict, k: int = 3) 
     neighborhood = set(tile_ids)
     frontier = set(tile_ids)
     
+    import os
+    dbg = os.environ.get("QCRSTL_DBG_KRING", "0") == "1"
+    if dbg:
+        print(f"[DBG k-ring] start_ids={list(tile_ids)[:5]} k={k}")
+        print(f"[DBG k-ring] has adjacency_graph={ 'adjacency_graph' in tiling_data }")
+        print(f"[DBG k-ring] frontier sample={list(frontier)[:5]}")
+
+    
     for _ in range(k):
+        
         new_frontier = set()
         for tile_id in frontier:
-            neighbors = tiling_data["adjacency_graph"].get(str(tile_id), [])
+            # Prefer per-tile neighbor list (flip_engine keeps it updated)
+            neighbors = tiling_data["tiles"][tile_id].get("neighbors", [])
+            if not neighbors:
+                # Fallback to adjacency_graph (support int OR str keys)
+                g = tiling_data.get("adjacency_graph") or {}
+                neighbors = g.get(str(tile_id), []) or g.get(tile_id) or []
             for n in neighbors:
-                nid = int(n) if isinstance(n, str) else n
+                try:    nid = int(n)
+                except Exception: 
+                    continue
                 if nid not in neighborhood:
                     new_frontier.add(nid)
         neighborhood.update(new_frontier)

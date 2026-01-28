@@ -270,6 +270,7 @@ def plot_strain_vs_distance(
 
     edges = np.asarray(list(bin_edges), dtype=float)
     means = []
+    
     centers = []
     for i in range(len(edges)-1):
         r0, r1 = edges[i], edges[i+1]

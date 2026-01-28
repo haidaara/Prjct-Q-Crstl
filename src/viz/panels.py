@@ -9,7 +9,7 @@ from matplotlib.patches import Polygon, Patch
 from matplotlib.collections import PatchCollection
 from matplotlib.colors import PowerNorm
 
-from .io import iter_tiles, extract_vertices, bounds_from_vertices
+from .io import iter_tiles, extract_vertices, bounds_from_vertices, extract_tile_positions
 
 
 @dataclass
@@ -159,13 +159,20 @@ def draw_geometry(ax, state: Dict[str, Any], *, cache: Optional[TilePatchCache] 
     return pc
 
 
-def draw_energy(ax, state: Dict[str, Any], *, cache: Optional[TilePatchCache] = None,
-                treat_immobile_as_fixed: bool = False,
-                percentile: Tuple[float, float] = (5, 95),
-                gamma: float = 1.0,
-                line_width: float = 0.5,
-                title: Optional[str] = None,
-                add_colorbar: bool = True):
+def draw_energy(
+    ax,
+    state: Dict[str, Any],
+    *,
+    cache: Optional[TilePatchCache] = None,
+    treat_immobile_as_fixed: bool = False,
+    percentile: Tuple[float, float] = (5, 95),
+    gamma: float = 1.0,
+    line_width: float = 0.5,
+    title: Optional[str] = None,
+    add_colorbar: bool = True,
+    vmin: Optional[float] = None,
+    vmax: Optional[float] = None,
+):
     """Local energy map (percentile scaling, excluding obstacles from scale)."""
     if cache is None:
         cache = build_patch_cache(state)
@@ -175,28 +182,58 @@ def draw_energy(ax, state: Dict[str, Any], *, cache: Optional[TilePatchCache] = 
 
     values: List[float] = []
     for tid in cache.ids:
-        obs = obs_map.get(tid)
-        if obs in ("pore", "fixed"):
+        if obs_map.get(tid) in ("pore", "fixed"):
             values.append(np.nan)
-        else:
-            values.append(energy_map.get(tid, np.nan))
+            continue
+        v = energy_map.get(tid, np.nan)
+        try:
+            fv = float(v)
+        except Exception:
+            fv = np.nan
+        values.append(fv if np.isfinite(fv) else np.nan)
 
-    valid = np.asarray([v for v in values if not np.isnan(v)])
+    valid = np.asarray([v for v in values if np.isfinite(v)], dtype=float)
 
     if valid.size == 0:
         pc = PatchCollection(cache.patches, facecolor="#EEEEEE", edgecolor="white", linewidth=line_width)
         ax.add_collection(pc)
-        ax.text(0.5, 0.5, "NO ENERGY DATA", ha="center", va="center", transform=ax.transAxes, color="red")
-        _finalize_ax(ax, cache)
+        ax.text(
+            0.5, 0.5, "NO ENERGY DATA\n(missing 'energy_local')",
+            ha="center", va="center", transform=ax.transAxes, color="red",
+        )
         if title:
             ax.set_title(title, fontweight="bold")
+        _finalize_ax(ax, cache)
         return pc
 
-    vmin, vmax = np.percentile(valid, [percentile[0], percentile[1]])
+    # Percentile-based limits (robust)
+    try:
+        p_lo = float(percentile[0]); p_hi = float(percentile[1])
+    except Exception:
+        p_lo, p_hi = 5.0, 95.0
+    p_lo = max(0.0, min(100.0, p_lo))
+    p_hi = max(0.0, min(100.0, p_hi))
+    if p_hi < p_lo:
+        p_lo, p_hi = p_hi, p_lo
+    if p_hi == p_lo:
+        p_hi = min(100.0, p_lo + 1.0)
+
+    pvmin, pvmax = np.percentile(valid, [p_lo, p_hi])
+    if (not np.isfinite(pvmin)) or (not np.isfinite(pvmax)) or (pvmax <= pvmin):
+        pvmin = float(np.nanmin(valid))
+        pvmax = float(np.nanmax(valid))
+        if pvmax <= pvmin:
+            pvmax = pvmin + 1.0
+
+    use_fixed = (
+        vmin is not None and vmax is not None and
+        np.isfinite(vmin) and np.isfinite(vmax) and float(vmax) > float(vmin)
+    )
+    scale_vmin, scale_vmax = (float(vmin), float(vmax)) if use_fixed else (float(pvmin), float(pvmax))
 
     norm = None
     if gamma is not None and float(gamma) != 1.0:
-        norm = PowerNorm(gamma=float(gamma), vmin=float(vmin), vmax=float(vmax))
+        norm = PowerNorm(gamma=float(gamma), vmin=scale_vmin, vmax=scale_vmax)
 
     pc = PatchCollection(
         cache.patches,
@@ -207,12 +244,20 @@ def draw_energy(ax, state: Dict[str, Any], *, cache: Optional[TilePatchCache] = 
     )
     pc.set_array(np.asarray(values, dtype=float))
     if norm is None:
-        pc.set_clim(vmin=vmin, vmax=vmax)
+        pc.set_clim(vmin=scale_vmin, vmax=scale_vmax)
+
     ax.add_collection(pc)
 
     if add_colorbar:
         cbar = plt.colorbar(pc, ax=ax, fraction=0.046, pad=0.04)
-        label = f"Local Energy (p{percentile[0]:.0f}={vmin:.2f}, p{percentile[1]:.0f}={vmax:.2f})"
+        label = "Local energy"
+        if use_fixed:
+            label += f" (fixed scale: {scale_vmin:.3g}..{scale_vmax:.3g})"
+        else:
+            label += (
+                f" (p{p_lo:.0f}={pvmin:.3g}, p{p_hi:.0f}={pvmax:.3g}; "
+                f"scale={scale_vmin:.3g}..{scale_vmax:.3g})"
+            )
         if gamma is not None and float(gamma) != 1.0:
             label += f"  γ={float(gamma):.2f}"
         cbar.set_label(label)
@@ -364,13 +409,20 @@ def draw_growth(ax, state: Dict[str, Any], *, cache: Optional[TilePatchCache] = 
     return pc
 
 
-def draw_strain(ax, state: Dict[str, Any], *, cache: Optional[TilePatchCache] = None,
-                treat_immobile_as_fixed: bool = False,
-                percentile: Tuple[float, float] = (5, 95),
-                line_width: float = 0.5,
-                title: Optional[str] = None,
-                add_colorbar: bool = True):
-    """Phason strain energy density map (uses per-tile 'phason_energy')."""
+def draw_strain(
+    ax,
+    state: Dict[str, Any],
+    *,
+    cache: Optional[TilePatchCache] = None,
+    treat_immobile_as_fixed: bool = False,
+    percentile: Tuple[float, float] = (5, 95),
+    line_width: float = 0.5,
+    title: Optional[str] = None,
+    add_colorbar: bool = True,
+    vmin: Optional[float] = None,
+    vmax: Optional[float] = None,
+):
+    """Phason strain energy map (percentile scaling, excluding obstacles from scale)."""
     if cache is None:
         cache = build_patch_cache(state)
 
@@ -379,37 +431,336 @@ def draw_strain(ax, state: Dict[str, Any], *, cache: Optional[TilePatchCache] = 
 
     values: List[float] = []
     for tid in cache.ids:
-        obs = obs_map.get(tid)
-        if obs in ("pore", "fixed"):
+        if obs_map.get(tid) in ("pore", "fixed"):
             values.append(np.nan)
-        else:
-            values.append(strain_map.get(tid, np.nan))
+            continue
+        v = strain_map.get(tid, np.nan)
+        try:
+            fv = float(v)
+        except Exception:
+            fv = np.nan
+        values.append(fv if np.isfinite(fv) else np.nan)
 
-    valid = np.asarray([v for v in values if not np.isnan(v)])
+    valid = np.asarray([v for v in values if np.isfinite(v)], dtype=float)
 
     if valid.size == 0:
         pc = PatchCollection(cache.patches, facecolor="#EEEEEE", edgecolor="white", linewidth=line_width)
         ax.add_collection(pc)
-        ax.text(0.5, 0.5, "NO STRAIN DATA\n(missing 'phason_energy')", ha="center", va="center",
-                transform=ax.transAxes, color="red")
+        ax.text(
+            0.5, 0.5, "NO STRAIN DATA\n(missing 'phason_energy')",
+            ha="center", va="center", transform=ax.transAxes, color="red",
+        )
         if title:
             ax.set_title(title, fontweight="bold")
         _finalize_ax(ax, cache)
         return pc
 
-    vmin, vmax = np.percentile(valid, [percentile[0], percentile[1]])
+    # Percentile-based limits (robust)
+    try:
+        p_lo = float(percentile[0]); p_hi = float(percentile[1])
+    except Exception:
+        p_lo, p_hi = 5.0, 95.0
+    p_lo = max(0.0, min(100.0, p_lo))
+    p_hi = max(0.0, min(100.0, p_hi))
+    if p_hi < p_lo:
+        p_lo, p_hi = p_hi, p_lo
+    if p_hi == p_lo:
+        p_hi = min(100.0, p_lo + 1.0)
+
+    pvmin, pvmax = np.percentile(valid, [p_lo, p_hi])
+    if (not np.isfinite(pvmin)) or (not np.isfinite(pvmax)) or (pvmax <= pvmin):
+        pvmin = float(np.nanmin(valid))
+        pvmax = float(np.nanmax(valid))
+        if pvmax <= pvmin:
+            pvmax = pvmin + 1.0
+
+    use_fixed = (
+        vmin is not None and vmax is not None and
+        np.isfinite(vmin) and np.isfinite(vmax) and float(vmax) > float(vmin)
+    )
+    scale_vmin, scale_vmax = (float(vmin), float(vmax)) if use_fixed else (float(pvmin), float(pvmax))
 
     pc = PatchCollection(cache.patches, cmap="magma", edgecolor="white", linewidth=line_width)
     pc.set_array(np.asarray(values, dtype=float))
-    pc.set_clim(vmin=vmin, vmax=vmax)
+    pc.set_clim(vmin=scale_vmin, vmax=scale_vmax)
     ax.add_collection(pc)
 
     if add_colorbar:
         cbar = plt.colorbar(pc, ax=ax, fraction=0.046, pad=0.04)
-        cbar.set_label(f"Phason strain energy (p{percentile[0]:.0f}={vmin:.2e}, p{percentile[1]:.0f}={vmax:.2e})")
+        if use_fixed:
+            cbar.set_label(f"Phason strain energy (fixed scale: {scale_vmin:.3g}..{scale_vmax:.3g})")
+        else:
+            cbar.set_label(
+                f"Phason strain energy (p{p_lo:.0f}={pvmin:.3g}, p{p_hi:.0f}={pvmax:.3g}; "
+                f"scale={scale_vmin:.3g}..{scale_vmax:.3g})"
+            )
 
     if title:
         ax.set_title(title, fontweight="bold")
 
     _finalize_ax(ax, cache)
     return pc
+
+
+
+
+# ---------------------------------------------------------------------------
+# Extra analytical panels (FFT / histograms) + a small dispatcher.
+# ---------------------------------------------------------------------------
+
+def draw_fft_panel(ax, state: dict, *, add_colorbar: bool = False) -> None:
+    """Diffraction/structure-factor style FFT panel (log intensity)."""
+    positions = extract_tile_positions(state)
+    if not positions:
+        ax.text(0.5, 0.5, "No tile positions", ha="center", va="center", transform=ax.transAxes)
+        ax.axis("off")
+        return
+
+    pts = np.asarray(positions, dtype=float)
+    pts = pts - np.mean(pts, axis=0, keepdims=True)
+
+    N = 512
+    xmin, ymin = np.min(pts, axis=0)
+    xmax, ymax = np.max(pts, axis=0)
+    Lx = max(1e-12, float(xmax - xmin))
+    Ly = max(1e-12, float(ymax - ymin))
+
+    ix = np.clip(((pts[:, 0] - xmin) / Lx * (N - 1)).astype(int), 0, N - 1)
+    iy = np.clip(((pts[:, 1] - ymin) / Ly * (N - 1)).astype(int), 0, N - 1)
+
+    grid = np.zeros((N, N), dtype=float)
+    np.add.at(grid, (iy, ix), 1.0)
+    grid = grid - grid.mean()
+
+    wx = np.hanning(N)
+    wy = np.hanning(N)
+    grid *= wy[:, None] * wx[None, :]
+
+    F = np.fft.fftshift(np.fft.fft2(grid))
+    I = np.abs(F) ** 2
+    I[N // 2, N // 2] = 0.0  # kill DC peak
+    logI = np.log1p(I)
+
+    dx = Lx / (N - 1)
+    dy = Ly / (N - 1)
+    kx = 2 * np.pi * np.fft.fftshift(np.fft.fftfreq(N, d=dx))
+    ky = 2 * np.pi * np.fft.fftshift(np.fft.fftfreq(N, d=dy))
+
+    show_k = 8.0
+    mx = np.where(np.abs(kx) <= show_k)[0]
+    my = np.where(np.abs(ky) <= show_k)[0]
+
+    crop = logI[my.min(): my.max() + 1, mx.min(): mx.max() + 1]
+    crop_kx = kx[mx]
+    crop_ky = ky[my]
+    extent = [crop_kx.min(), crop_kx.max(), crop_ky.min(), crop_ky.max()]
+
+    pos = crop[crop > 0]
+    vmax = float(np.percentile(pos, 99.7)) if pos.size else float(np.max(crop))
+
+    im = ax.imshow(crop, extent=extent, origin="lower", aspect="equal", vmin=0.0, vmax=vmax)
+    ax.set_title("Diffraction (FFT, log scale)")
+    ax.set_xlabel(r"$k_x$")
+    ax.set_ylabel(r"$k_y$")
+
+    if add_colorbar:
+        plt.colorbar(im, ax=ax, label=r"$\log(1+I)$")
+
+
+def draw_vertex_dist_panel(ax, state: dict) -> None:
+    """Bar chart of vertex_class distribution."""
+    counts: Dict[str, int] = {}
+    for _, t in iter_tiles(state):
+        if t.get("removed", False):
+            continue
+        cls = str(t.get("vertex_class", "UNKNOWN"))
+        counts[cls] = counts.get(cls, 0) + 1
+
+    if not counts:
+        ax.text(0.5, 0.5, "No vertex_class", ha="center", va="center", transform=ax.transAxes)
+        ax.axis("off")
+        return
+
+    items = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)
+    labels = [k for k, _ in items]
+    values = [v for _, v in items]
+    x = np.arange(len(labels))
+    ax.bar(x, values)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, rotation=45, ha="right")
+    ax.set_title("Vertex classes")
+    ax.grid(True, alpha=0.25, axis="y")
+
+
+def draw_energy_hist_panel(ax, state: dict) -> None:
+    obs_map = get_obstacle_mask(state)
+    emap = get_energy_map(state)
+    vals = [v for tid, v in emap.items() if not np.isnan(v) and obs_map.get(tid) is None]
+    if not vals:
+        ax.text(0.5, 0.5, "No energy", ha="center", va="center", transform=ax.transAxes)
+        ax.axis("off")
+        return
+    ax.hist(vals, bins=50, density=True)
+    ax.set_title("Energy histogram")
+    ax.set_xlabel("Local energy")
+    ax.set_ylabel("Density")
+    ax.grid(True, alpha=0.25)
+
+
+def draw_strain_hist_panel(ax, state: dict) -> None:
+    obs_map = get_obstacle_mask(state)
+    smap = get_phason_energy_map(state)
+    vals = [v for tid, v in smap.items() if not np.isnan(v) and obs_map.get(tid) is None]
+    if not vals:
+        ax.text(0.5, 0.5, "No phason_energy", ha="center", va="center", transform=ax.transAxes)
+        ax.axis("off")
+        return
+    ax.hist(vals, bins=50, density=True)
+    ax.set_title("Phason strain energy hist")
+    ax.set_xlabel("Phason strain energy")
+    ax.set_ylabel("Density")
+    ax.grid(True, alpha=0.25)
+
+
+def draw_energy_cdf_panel(ax, state: dict) -> None:
+    obs_map = get_obstacle_mask(state)
+    emap = get_energy_map(state)
+    vals = [v for tid, v in emap.items() if not np.isnan(v) and obs_map.get(tid) is None]
+    if not vals:
+        ax.text(0.5, 0.5, "No energy", ha="center", va="center", transform=ax.transAxes)
+        ax.axis("off")
+        return
+    x = np.sort(np.asarray(vals, dtype=float))
+    y = np.linspace(0.0, 1.0, x.size)
+    ax.plot(x, y)
+    ax.set_title("Energy CDF")
+    ax.set_xlabel("Local energy")
+    ax.set_ylabel("CDF")
+    ax.grid(True, alpha=0.25)
+
+
+def draw_energy_quantiles_panel(ax, state: dict) -> None:
+    obs_map = get_obstacle_mask(state)
+    emap = get_energy_map(state)
+    vals = [v for tid, v in emap.items() if not np.isnan(v) and obs_map.get(tid) is None]
+    if not vals:
+        ax.text(0.5, 0.5, "No energy", ha="center", va="center", transform=ax.transAxes)
+        ax.axis("off")
+        return
+    vals = np.asarray(vals, dtype=float)
+    qs = np.array([0.5, 0.75, 0.9, 0.95, 0.99])
+    qv = np.quantile(vals, qs)
+    ax.plot(qs, qv, marker="o")
+    ax.set_title("Energy quantiles")
+    ax.set_xlabel("Quantile")
+    ax.set_ylabel("Energy")
+    ax.set_xticks(qs)
+    ax.grid(True, alpha=0.25)
+
+
+_PANEL_ALIASES = {
+    "geom": "geometry",
+    "energy_local": "energy",
+    "local_energy": "energy",
+    "defect": "defects",
+    "energy_class": "class",
+    "phason": "strain",
+    "phason_energy": "strain",
+}
+
+
+def draw_named_panel(
+    ax,
+    state: Dict[str, Any],
+    kind: str,
+    *,
+    cache: Optional[TilePatchCache] = None,
+    title: Optional[str] = None,
+    **kwargs,
+):
+    """Draw a single panel by name.
+
+    Layout code controls: titles, legends, colorbars.
+    This router only selects the right panel implementation.
+    """
+    k = str(kind).lower().strip()
+    k = _PANEL_ALIASES.get(k, k)
+
+    treat_immobile_as_fixed = bool(kwargs.get("treat_immobile_as_fixed", False))
+    line_width = float(kwargs.get("line_width", 0.4))
+    legend = bool(kwargs.get("legend", False))
+    add_colorbar = bool(kwargs.get("add_colorbar", False))
+
+    if k == "geometry":
+        return draw_geometry(
+            ax, state, cache=cache, treat_immobile_as_fixed=treat_immobile_as_fixed,
+            line_width=line_width, title=title, legend=legend
+        )
+
+    if k == "energy":
+        percentile = kwargs.get("percentile", (5.0, 99.8))
+        gamma = float(kwargs.get("gamma", 4.0))
+        vmin = kwargs.get("vmin", None)
+        vmax = kwargs.get("vmax", None)
+        return draw_energy(
+            ax, state, cache=cache, treat_immobile_as_fixed=treat_immobile_as_fixed,
+            line_width=line_width, percentile=percentile, gamma=gamma,
+            vmin=vmin, vmax=vmax, title=title, add_colorbar=add_colorbar
+        )
+
+    if k == "defects":
+        defect_threshold = float(kwargs.get("defect_threshold", 1.5))
+        return draw_defects(
+            ax, state, cache=cache, defect_threshold=defect_threshold,
+            treat_immobile_as_fixed=treat_immobile_as_fixed,
+            line_width=line_width, title=title, legend=legend
+        )
+
+    if k == "class":
+        prefer = str(kwargs.get("prefer", "energy_class"))
+        return draw_class(
+            ax, state, cache=cache, treat_immobile_as_fixed=treat_immobile_as_fixed,
+            line_width=line_width, prefer=prefer, title=title, legend=legend
+        )
+
+    if k == "vertex_class":
+        return draw_class(
+            ax, state, cache=cache, treat_immobile_as_fixed=treat_immobile_as_fixed,
+            line_width=line_width, prefer="vertex_class", title=title, legend=legend
+        )
+
+    if k == "growth":
+        return draw_growth(
+            ax, state, cache=cache, treat_immobile_as_fixed=treat_immobile_as_fixed,
+            line_width=line_width, title=title, legend=legend
+        )
+
+    if k == "strain":
+        percentile = kwargs.get("percentile", (5.0, 95.0))
+        vmin = kwargs.get("vmin", None)
+        vmax = kwargs.get("vmax", None)
+        return draw_strain(
+            ax, state, cache=cache, treat_immobile_as_fixed=treat_immobile_as_fixed,
+            line_width=line_width, percentile=percentile,
+            vmin=vmin, vmax=vmax, title=title, add_colorbar=add_colorbar
+        )
+
+    if k == "fft":
+        return draw_fft_panel(ax, state, add_colorbar=add_colorbar)
+
+    if k in {"vertex_dist", "vertex_distribution"}:
+        return draw_vertex_dist_panel(ax, state)
+
+    if k == "energy_hist":
+        return draw_energy_hist_panel(ax, state)
+
+    if k == "strain_hist":
+        return draw_strain_hist_panel(ax, state)
+
+    if k == "energy_cdf":
+        return draw_energy_cdf_panel(ax, state)
+
+    if k == "energy_quantiles":
+        return draw_energy_quantiles_panel(ax, state)
+
+    raise ValueError(f"Unknown panel kind: {kind}")

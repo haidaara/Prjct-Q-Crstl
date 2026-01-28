@@ -215,7 +215,7 @@ def main() -> int:
     args = parser.parse_args()
     
     config_path = Path(args.config) if args.config else None
-    _utils.print_progress_header("TOML Visualization Runner", config_path)
+    # _utils.print_progress_header("TOML Visualization Runner", config_path)
     
     with _utils.Timer() as timer:
         cfg = _utils.load_publication_config(args.config)
@@ -253,17 +253,45 @@ def main() -> int:
             elif kind == "storyboard":
                 # Check if storyboard is enabled
                 if _utils.is_plot_enabled("storyboard", viz, job):
-                    view = job.get("view", "strain")
-                    n_frames = int(job.get("n_frames", 12))
-                    ncols = int(job.get("ncols", 4))
-                    make_storyboard(job["snapshot_dir"], view=view, n_frames=n_frames, 
-                                   ncols=ncols, outdir=outdir, cfg=cfg)
+                    view = job.get("movie_view")
+                    if view is None:
+                        view = job.get("view", viz.get("movie_view", "strain"))
+
+                    n_frames = int(_utils.get_parameter("n_frames", viz, job, None, 12))
+                    ncols = int(_utils.get_parameter("ncols", viz, job, None, 4))
+
+                    job_cfg = _utils.cfg_with_job_overrides(cfg, job)
+                    make_storyboard(
+                        job["snapshot_dir"],
+                        view=view,
+                        n_frames=n_frames,
+                        ncols=ncols,
+                        outdir=outdir,
+                        cfg=job_cfg,
+                    )
+
             elif kind == "movie":
                 # Check if movie is enabled
                 if _utils.is_plot_enabled("movie", viz, job):
-                    view = job.get("view", "strain")
-                    fps = int(job.get("fps", 12))
-                    make_movie(job["snapshot_dir"], view=view, fps=fps, outdir=outdir, cfg=cfg)
+                    view = job.get("movie_view")
+                    if view is None:
+                        view = job.get("view", viz.get("movie_view", "strain"))
+
+                    fps = int(_utils.get_parameter("fps", viz, job, None, 12))
+                    format_type = _utils.get_parameter("format", viz, job, None, "gif")
+
+                    job_cfg = _utils.cfg_with_job_overrides(cfg, job)
+                    save_path = Path(outdir) / f"movie_{Path(str(job['snapshot_dir'])).name}_{view}.{str(format_type).lower()}"
+
+                    make_movie(
+                        job["snapshot_dir"],
+                        view=view,
+                        fps=fps,
+                        save_path=save_path,
+                        outdir=outdir,
+                        cfg=job_cfg,
+                    )
+
             elif kind == "spatial":
                 # Check if spatial plot is enabled
                 if _utils.is_plot_enabled("defect_density_by_distance", viz, job):

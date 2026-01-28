@@ -133,10 +133,22 @@ def create_obstacle_configurations(obstacle_creator, visualizer, base_tiling, ob
         energy_model = WidomInspiredEnergy.from_config(obstacle_creator.config)
         energy_model.update_tiling_energy(obstacle_tiling)
 
+        # --- Publication-quality metadata: refresh coordination distribution AFTER topology edits ---
+        # (Otherwise pores configs keep the "perfect tiling" coordination stats, which becomes stale.)
+        coord = {}
+        for t in obstacle_tiling["tiles"]:
+            deg = str(len(t.get("neighbors", [])))
+            coord[deg] = coord.get(deg, 0) + 1
+
+        md = obstacle_tiling.get("metadata", {})
+        if "coordination_distribution" in md and "coordination_distribution_original" not in md:
+            md["coordination_distribution_original"] = md["coordination_distribution"]
+        md["coordination_distribution"] = dict(sorted(coord.items(), key=lambda kv: int(kv[0])))
+
         # # --- Keep decomposition fields consistent with updated local_energy ---
         # w = energy_model.params.matching_rule_weight
         # for t in obstacle_tiling["tiles"]:
-        #     if t.get("removed", False) or t.get("obstacle_type") == "pore":
+        #      if t.get("removed", False):
         #         t["surface_contribution"] = 0.0
         #         t["bulk_energy"] = 0.0
         #         continue
@@ -150,6 +162,7 @@ def create_obstacle_configurations(obstacle_creator, visualizer, base_tiling, ob
             obstacle_tiling["adjacency_graph"] = adjacency_intkeys_to_str(
                 obstacle_tiling["adjacency_graph"]
             )
+
         
         # Save obstacle configuration
         file_path = save_obstacle_config(obstacle_tiling, spec_name, output_dir)

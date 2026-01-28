@@ -156,7 +156,7 @@ def parse_step(data: Dict[str, Any], default: Optional[int] = None) -> int:
         return int(s)
     return int(default if default is not None else 0)
 
-def list_snapshots(snapshot_dir: PathLike, pattern: str = "*.json") -> List[Path]:
+def list_snapshots(snapshot_dir: PathLike, pattern: str = "snapshot_*.json") -> List[Path]:
     d = Path(snapshot_dir)
     if not d.exists() or not d.is_dir():
         return []

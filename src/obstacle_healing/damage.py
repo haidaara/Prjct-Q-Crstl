@@ -10,7 +10,7 @@ def count_defects_fast(tiling: Dict, measurement_ids: List[int], *, defect_thres
     c = 0
     for tid in measurement_ids:
         t = tiles[tid]
-        if t.get("removed", False):
+        if t.get("removed", False) or t.get("immobile", False):
             continue
         e = t.get("local_energy")
         if e is None:

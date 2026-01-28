@@ -9,6 +9,7 @@ import random
 import time
 from typing import Dict, List, Tuple, Any, Optional
 import numpy as np
+from numbers import Integral
 
 from src.utils.energy_utils import (
     wipe_all_energy_fields, clear_all_caches,
@@ -63,13 +64,49 @@ class MonteCarloEngine:
             "delta_energy_history": []
         }
 
+    def _ensure_adjacency_graph_int_keys(self, tiling_data: Dict) -> None:
+        """
+        Normalize adjacency_graph to *string* keys only.
+        """
+        g = tiling_data.get("adjacency_graph")
+        if not isinstance(g, dict) or not g:
+            return
+
+        # First, sanitize values for existing string keys
+        for k, v in list(g.items()):
+            if isinstance(k, str) and isinstance(v, list):
+                try:
+                    g[k] = [int(x) for x in v]
+                except Exception:
+                    pass
+
+        # Then, delete int keys (but if a string twin doesn't exist, keep it by migrating)
+        int_keys = [k for k in list(g.keys()) if isinstance(k, Integral) and not isinstance(k, bool)]
+        if not int_keys:
+            return
+
+        for ik in int_keys:
+            sk = str(ik)
+            if sk not in g:
+                g[sk] = g[ik]
+                if isinstance(g[sk], list):
+                    try:
+                        g[sk] = [int(x) for x in g[sk]]
+                    except Exception:
+                        pass
+            del g[ik]
+
+
+
     def _vprint(self, msg: str, level: int = 1):
         if self.verbosity >= level:
             print(msg, flush=True)
 
     def initialize_energy(self, tiling_data: Dict) -> None:
         """Compute initial total energy with fresh computation"""
+        self._ensure_adjacency_graph_int_keys(tiling_data)
         self.current_energy = compute_total_energy_fresh(self.energy_model, tiling_data)
+
         self.metrics["energy_history"].append(self.current_energy)
 
     def _compute_region_energy_fresh(self, tile_ids, tiling_data, extra_ring: int = 1,
@@ -81,29 +118,30 @@ class MonteCarloEngine:
         return_map=False -> returns float energy  (same as before)
         return_map=True  -> returns (energy, energy_map) for printing only
         """
+        self._ensure_adjacency_graph_int_keys(tiling_data)
         wipe_region = get_k_ring_neighborhood(tile_ids, tiling_data, k=extra_ring)
 
-        for tile_id in wipe_region:
-            tile = tiling_data["tiles"][tile_id]
-            tile.pop("local_energy", None)
-            tile.pop("vertex_class", None)
-            tile.pop("phason_energy", None)
-
-
+        # Freshness should come from cache invalidation, not deleting stored fields.
         clear_all_caches(self.energy_model)
-
+        
+        if self.energy_model is None:
+            raise ValueError("energy_model is not set. Cannot compute local energy.")
+        
         energy = 0.0
         energy_map = {} if return_map else None
-
+        
         for tile_id in tile_ids:
-            tile = tiling_data["tiles"][tile_id]
-            if not tile.get("removed", False):
-                if self.energy_model is None:
-                    raise ValueError("energy_model is not set. Cannot compute local energy.")
-                e = self.energy_model.compute_local_energy(tile_id, tiling_data)
+            # Always recompute local energy so tile fields remain consistent,
+            # including removed/pore tiles (energy model defines them as zero-energy).
+            e = self.energy_model.compute_local_energy(tile_id, tiling_data)
+        
+            # Keep the same convention as before: removed tiles do not contribute to region sum.
+            if not tiling_data["tiles"][tile_id].get("removed", False):
                 energy += e
-                if return_map:
-                    energy_map[tile_id] = float(e)
+        
+            if return_map:
+                energy_map[tile_id] = float(e)
+        
 
         if return_map:
             return energy, energy_map
@@ -141,19 +179,46 @@ class MonteCarloEngine:
 
         # 1. Core Region (Radius 3): The region physically affected by the flip
         #    This is used for geometry updates and adjacency consistency.
+        self._ensure_adjacency_graph_int_keys(tiling_data)
         core_region = get_k_ring_neighborhood(
             cluster_ids, tiling_data, k=self.neighborhood_radius
         )
+
+
 
         # 2. Delta Region (Radius 4): The region needed for Energy Summation
         #    Because neighbor interactions are asymmetric, an update in the Core Region
         #    changes the computed energy of tiles one step further out.
         delta_region = get_k_ring_neighborhood(
-            list(core_region), tiling_data, k=1
+            list(core_region), tiling_data, k=2
         )
 
         do_detail = (self.verbosity >= 2) and (self._step_counter % self.trace_every == 0)
-
+        # #### DETAIL PRINTING  to debug #### 
+        if do_detail:
+            g = tiling_data.get("adjacency_graph", {})
+            print(
+                f"[MC] step={self._step_counter} T={self.temperature:.3g} "
+                f"cluster={len(cluster_ids)} core={len(core_region)} delta={len(delta_region)} "
+                f"adj_keys={len(g)}",
+                flush=True,
+            )
+        
+            # Only deep-dump if neighborhood did NOT expand (suspicious)
+            if len(core_region) <= len(cluster_ids) or len(delta_region) <= len(core_region):
+                sample = list(cluster_ids)[:3]
+                print(f"[MC-WARN] k-ring not expanding; cluster sample={sample}", flush=True)
+                if g:
+                    k0 = next(iter(g.keys()))
+                    print(f"[MC-WARN] adjacency_graph key example={k0!r} type={type(k0).__name__}", flush=True)
+                for tid in sample:
+                    nb = g.get(str(tid), g.get(tid, None))
+                    nb_len = None if nb is None else len(nb)
+                    print(f"[MC-WARN] tid={tid} neighbors_in_graph={nb_len}", flush=True)
+        
+        # ##### ---------------------------------------------------------
+        
+               
 
         # 3. Capture State (Use Delta Region)
         #    We must capture the full delta_region so that if we reject,
@@ -235,10 +300,11 @@ class MonteCarloEngine:
                 level=2
             )
             self._vprint(
-                f"    core_region={self.neighborhood_radius} delta_region={len(delta_region)} | "
+                f"    radius={self.neighborhood_radius} core_region={len(core_region)} delta_region={len(delta_region)} | "
                 f"E_before={energy_before:.6f} E_after={energy_after:.6f}",
                 level=2
             )
+
 
             changes = []
             for tid in delta_region:

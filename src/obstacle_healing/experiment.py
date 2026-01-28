@@ -12,6 +12,7 @@ import numpy as np
 
 from src.energy.combinatorial_classifier import CombinatorialVertexClassifier
 from src.energy.widom_inspired_energy import WidomInspiredEnergy, EnergyParameters
+from src.utils.config import ConfigManager
 from src.simulation.flip_engine import FlipEngine
 from src.simulation.mc_engine import MonteCarloEngine
 
@@ -23,6 +24,32 @@ from src.obstacle_healing.damage import count_defects_fast, damage_by_heating
 
 def _ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
+
+
+def _clear_run_dir_outputs(run_dir: Path) -> None:
+    """
+    Overwrite-mode cleanup to prevent snapshot mixing when reusing the same run_name.
+    Removes:
+      - snapshots/snapshot_*.json
+      - snapshot_index.json
+      - run_metrics.json
+    """
+    snap_dir = run_dir / "snapshots"
+    if snap_dir.exists():
+        for p in snap_dir.glob("snapshot_*.json"):
+            try:
+                p.unlink()
+            except OSError:
+                pass
+
+    for fname in ("snapshot_index.json", "run_metrics.json"):
+        p = run_dir / fname
+        if p.exists():
+            try:
+                p.unlink()
+            except OSError:
+                pass
+
 
 
 def parse_anneal_schedule(ann_cfg: Dict[str, Any]) -> List[Tuple[float, int, str]]:
@@ -94,6 +121,11 @@ class ObstacleHealingExperiment:
         with open(self.input_path, "r", encoding="utf-8") as f:
             tiling = json.load(f)
 
+        # stamp run_id from configuration (NO timestamps)
+        tiling.setdefault("metadata", {})
+        tiling["metadata"]["run_id"] = self.run_name
+
+
         total_tiles = len(tiling.get("tiles", []))
         obstacle_meta = tiling.get("obstacle_metadata") or {}
         obstacle_mode = str(obs_cfg.get("mode", obstacle_meta.get("type", "pores"))).lower()
@@ -102,10 +134,17 @@ class ObstacleHealingExperiment:
         if obstacle_mode == "fixed_defects":
             obstacle_mode = "fixed_defects"
 
-        # ---- engines (same physics as your original healing: Widom energy + MC phason flips)
+# ---- engines (load phase2 energy config so phason/strain is enabled)
         if self.energy_model is None:
-            params = EnergyParameters()
-            self.energy_model = WidomInspiredEnergy(params)
+            energy_cfg = self.cfg.get("energy", {}) or {}
+            energy_config_path = str(energy_cfg.get("config_path", "configs/phase2_experiments.toml"))
+
+            # IMPORTANT: we want phason strain to exist; fail fast if config is missing.
+            cfg_mgr = ConfigManager(energy_config_path)
+            self.energy_model = WidomInspiredEnergy.from_config(cfg_mgr)
+
+        
+
 
         if self.flip_engine is None:
             classifier = CombinatorialVertexClassifier()
@@ -141,25 +180,110 @@ class ObstacleHealingExperiment:
             tiling, mode=obstacle_mode, measurement_ids=measurement_ids,
             active_buffer=active_buffer, fixed_active_k=fixed_active_k
         )
+
+        if not measurement_ids:
+            raise ValueError(
+                f"Empty measurement region (mode={obstacle_mode}). "
+                "Check obstacle_metadata (pores) or immobile tiles (fixed_defects)."
+            )
+
+        if not active_ids:
+            raise ValueError(
+                f"Empty active region (mode={obstacle_mode}). "
+                "MC would run with no flippable tiles."
+            )
+
         _apply_flippable_mask(tiling, active_ids)
 
         # ---- output
         run_dir = Path(self.output_dir) / self.run_name
         _ensure_dir(run_dir)
+
+        # Overwrite by default (matches current workflow); set run.overwrite = false to keep history.
+        overwrite = bool(run_cfg.get("overwrite", True))
+        if overwrite:
+            _clear_run_dir_outputs(run_dir)
+
         snapshotter = Snapshotter(run_dir)
         metrics = RunMetrics()
 
+
         defect_threshold = float(def_cfg.get("threshold", 1.5))
+
+        # Optional: auto-calibrate if defect_cfg.auto_threshold = true
+        if bool(def_cfg.get("auto_threshold", True)):
+            vals = []
+            tiles = tiling["tiles"]
+            for tid in measurement_ids:
+                t = tiles[tid]
+                if t.get("removed") or t.get("immobile"):
+                    continue
+                e = t.get("local_energy")
+                if e is not None:
+                    vals.append(float(e))
+            if vals:
+                vals_sorted = sorted(vals)
+                p999 = vals_sorted[int(0.999 * (len(vals_sorted)-1))]
+                mean = sum(vals)/len(vals)
+                # choose conservative threshold above baseline tail
+                defect_threshold = max(p999 * 1.5, mean * 2.5)
 
         # baseline init (fills local_energy)
         self.energy_model.update_tiling_energy(tiling)
         self.mc_engine.initialize_energy(tiling)
 
         baseline_energy = float(self.mc_engine.current_energy)
+        if debug:
+            print(
+                f"[DEFECT_COUNT] PRE tag=baseline step=0 "
+                f"measurement={len(measurement_ids)} threshold={defect_threshold}",
+                flush=True,
+            )
+
         baseline_defects = count_defects_fast(tiling, measurement_ids, defect_threshold=defect_threshold)
 
         def _p(msg: str) -> None:
             print(msg, flush=True)
+
+        ########## print debug info
+        def _dbg_before_defect_count(tag: str, step: int, T: float) -> None:
+            # Print context RIGHT BEFORE calling count_defects_fast(...)
+            if not debug:
+                return
+            tiles = tiling["tiles"]
+            missing = removed = immobile = 0
+            mn = float("inf")
+            mx = float("-inf")
+
+            for tid in measurement_ids:
+                t = tiles[tid]
+                if t.get("removed", False):
+                    removed += 1
+                if t.get("immobile", False):
+                    immobile += 1
+
+                e = t.get("local_energy", None)
+                if e is None:
+                    missing += 1
+                    continue
+                e = float(e)
+                if e < mn:
+                    mn = e
+                if e > mx:
+                    mx = e
+
+            if mn == float("inf"):
+                mn = float("nan")
+                mx = float("nan")
+
+
+            _p(
+                f"[DEFECT_COUNT] PRE tag={tag} step={step} T={T} "
+                f"measurement={len(measurement_ids)} removed={removed} immobile={immobile} "
+                f"missing_local={missing} min_local={mn:.6g} max_local={mx:.6g} "
+                f"threshold={defect_threshold}"
+            )
+        ##########
 
         _p("=" * 79)
         _p("OBSTACLE HEALING EXPERIMENT - START")
@@ -171,6 +295,14 @@ class ObstacleHealingExperiment:
         _p(f"Defect threshold: local_energy > {defect_threshold}")
         _p("-" * 79)
 
+
+        # ############ print debug info 
+        # missing = self._count_missing_local_energy(tiling, measurement_ids)
+        # if self.verbosity >= 2 and missing:
+        #     print(f"[DEFECT-WARN] step={global_step} missing_local_energy_in_measurement={missing}", flush=True)
+        # ############
+        
+        
         snapshotter.save_snapshot(
             tiling=tiling, step=0, label="baseline",
             temperature=float(ann_cfg.get("initial_T", 0.0)),
@@ -186,6 +318,13 @@ class ObstacleHealingExperiment:
         damage_check_every = int(dmg_cfg.get("check_every", 200))
         damage_print_every = int(dmg_cfg.get("print_every", 200))
 
+
+        ############ print debug info 
+        # missing = self._count_missing_local_energy(tiling, measurement_ids)
+        # if self.verbosity >= 2 and missing:
+        #     print(f"[DEFECT-WARN] step={global_step} missing_local_energy_in_measurement={missing}", flush=True)
+        # ############
+        
         damaged_energy = baseline_energy
         damaged_defects = baseline_defects
         damage_steps = 0
@@ -223,15 +362,38 @@ class ObstacleHealingExperiment:
 
             # refresh local_energy for snapshot correctness
             self.energy_model.update_tiling_energy(tiling)
+            self.mc_engine.initialize_energy(tiling)   # re-sync after full recompute
+
+            # ############ print debug info 
+            # missing = self._count_missing_local_energy(tiling, measurement_ids)
+            # if self.verbosity >= 2 and missing:
+            #     print(f"[DEFECT-WARN] step={global_step} missing_local_energy_in_measurement={missing}", flush=True)
+            # ############
+
+
             damaged_energy = float(self.mc_engine.current_energy)
+
             
             # Recompute defects AFTER the refresh so the scalar matches the saved tile energies
+            self.mc_engine._compute_region_energy_fresh(list(measurement_ids), tiling, extra_ring=1)
+
+            ##### print debug info
+
+            _dbg_before_defect_count("after_damage", damage_steps, float(damage_T))
             damaged_defects = count_defects_fast(tiling, measurement_ids, defect_threshold=defect_threshold)
-            
+            ############
+
+            # ############ print debug info 
+            # missing = self._count_missing_local_energy(tiling, measurement_ids)
+            # if self.verbosity >= 2 and missing:
+            #     print(f"[DEFECT-WARN] step={global_step} missing_local_energy_in_measurement={missing}", flush=True)
+            # ############
+
             snapshotter.save_snapshot(
-                tiling=tiling, step=1, label="damaged", temperature=damage_T,
+                tiling=tiling, step=damage_steps, label="damaged", temperature=damage_T,
                 metrics={"energy": damaged_energy, "defects": damaged_defects, "damage_steps": damage_steps},
             )
+
 
             _p(f"DAMAGE DONE: defects={damaged_defects}/{len(measurement_ids)} steps={damage_steps}")
 
@@ -246,13 +408,17 @@ class ObstacleHealingExperiment:
         verify_every = int(ann_cfg.get("verify_every", 50))
         print_every = int(log_cfg.get("print_every", 50))
 
-        global_step = 0
+        global_step = damage_steps
         drift_max = 0.0
 
         for si, (T, steps_in_stage, name) in enumerate(stages, start=1):
             metrics.add_stage_transition(step=global_step, T=T, name=name, steps_in_stage=steps_in_stage)
             self.mc_engine.temperature = float(T)
 
+            self.mc_engine._compute_region_energy_fresh(list(measurement_ids), tiling, extra_ring=1)
+            ############ print debug info
+            _dbg_before_defect_count(f"stage{si}_start", global_step, float(T))
+            #############
             stage_start_defects = count_defects_fast(tiling, measurement_ids, defect_threshold=defect_threshold)
             stage_start_energy = float(self.mc_engine.current_energy)
 
@@ -275,6 +441,11 @@ class ObstacleHealingExperiment:
 
                 if global_step % metrics_every == 0 or (k == steps_in_stage):
                     E = float(self.mc_engine.current_energy)
+                    self.mc_engine._compute_region_energy_fresh(list(measurement_ids), tiling, extra_ring=1)
+                    
+                    ############ print debug info
+                    _dbg_before_defect_count(f"stage{si}_metrics", global_step, float(T))
+                    #########
                     dcount = count_defects_fast(tiling, measurement_ids, defect_threshold=defect_threshold)
                     density = dcount / max(1, len(measurement_ids))
                     acc_rate = (acc_accepted / max(1, acc_proposed))
@@ -283,13 +454,31 @@ class ObstacleHealingExperiment:
                         defects=dcount, defect_density=density,
                         acceptance_rate=acc_rate, energy_drift=drift
                     )
+                
 
-                if global_step % snapshot_every == 0:
-                    snapshotter.save_snapshot(
-                        tiling=tiling, step=global_step, label="healing", temperature=T,
-                        metrics={"energy": float(self.mc_engine.current_energy),
-                                 "defects": count_defects_fast(tiling, measurement_ids, defect_threshold=defect_threshold)}
+                # ---- periodic snapshots (drives movie frames)
+                if snapshot_every > 0 and (global_step % snapshot_every == 0):
+                    # ensure snapshot contains fresh energies for measurement region
+                    self.mc_engine._compute_region_energy_fresh(list(measurement_ids), tiling, extra_ring=1)
+                    snap_defects = count_defects_fast(
+                        tiling, measurement_ids, defect_threshold=defect_threshold
                     )
+
+                    snapshotter.save_snapshot(
+                        tiling=tiling,
+                        step=global_step,
+                        label="healing",
+                        temperature=T,
+                        metrics={
+                            "energy": float(self.mc_engine.current_energy),
+                            "defects": int(snap_defects),
+                            "acceptance_rate": float(acc_accepted / max(1, acc_proposed)),
+                            "energy_drift": float(drift),
+                            "stage_index": si,
+                            "stage_name": name,
+                        },
+                    )
+
 
                 if (global_step % print_every == 0) and (not debug) and metrics.steps:
                     i = len(metrics.steps) - 1
@@ -299,6 +488,11 @@ class ObstacleHealingExperiment:
                         f"acc={metrics.acceptance_rates[i]*100:.1f}% drift={metrics.energy_drifts[i]:.2e}"
                     )
 
+
+            self.mc_engine._compute_region_energy_fresh(list(measurement_ids), tiling, extra_ring=1)
+            ############ print debug info
+            _dbg_before_defect_count(f"stage{si}_end", global_step, float(T))
+            #############
             stage_end_defects = count_defects_fast(tiling, measurement_ids, defect_threshold=defect_threshold)
             stage_end_energy = float(self.mc_engine.current_energy)
             _p(
@@ -307,6 +501,11 @@ class ObstacleHealingExperiment:
                 f"E {stage_start_energy:.3f}→{stage_end_energy:.3f}  drift_max={drift_max:.2e}"
             )
 
+        self.mc_engine._compute_region_energy_fresh(list(measurement_ids), tiling, extra_ring=1)
+        
+        ########## print debug info
+        _dbg_before_defect_count("final", global_step, float(T))
+        ###########
         final_defects = count_defects_fast(tiling, measurement_ids, defect_threshold=defect_threshold)
         final_energy = float(self.mc_engine.current_energy)
 
@@ -315,6 +514,13 @@ class ObstacleHealingExperiment:
             metrics={"energy": final_energy, "defects": final_defects}
         )
 
+
+        # ############ print debug info 
+        # missing = self._count_missing_local_energy(tiling, measurement_ids)
+        # if self.verbosity >= 2 and missing:
+        #     print(f"[DEFECT-WARN] step={global_step} missing_local_energy_in_measurement={missing}", flush=True)
+        # ############
+        
         metrics.finalize_summary(
             baseline_defects=baseline_defects,
             damaged_defects=damaged_defects,
