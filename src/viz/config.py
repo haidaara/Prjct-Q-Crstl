@@ -20,8 +20,8 @@ from typing import Any, Dict, List, Optional, Union
 
 DEFAULT_CONFIG: Dict[str, Any] = {
     "publication": {
-        "format": "pdf",
-        "dpi": 600,
+        "format": "png",
+        "dpi": 300,
         "transparent_background": False,
         "tight_layout": True,
     },
@@ -44,12 +44,40 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     },
     "viz_jobs": {
         "enabled": False,
+
+        # Shared visualization policy (used by multiple scripts)
         "defect_threshold": 1.5,
-        "energy_percentile": [5, 95],
-        "strain_percentile": [5, 95],
         "treat_immobile_as_fixed": False,
+
+        # Percentiles are only used when vmin/vmax are not forced.
+        "energy_percentile": [5, 99.8],
+        "strain_percentile": [5, 95],
+
+        # Publication-safe fixed scales (Option A: user forces these in TOML)
+        "energy_vmin": None,
+        "energy_vmax": None,
+        "strain_vmin": None,
+        "strain_vmax": None,
+
+        # Energy appearance
+        "energy_gamma": 4.0,
+
+        # Movie/storyboard defaults (so CLI is optional)
+        "movie_view": "strain",
+        "fps": 12,
+        "format": "gif",
+        "n_frames": 12,
+        "ncols": 4,
+
+        # Frame rendering defaults
+        "movie_dpi": 200,
+        "movie_figsize": [8, 8],
+        "movie_title": True,
+
+        # Job list (used in TOML batch mode)
         "jobs": [],
     },
+
 }
 
 

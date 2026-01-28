@@ -1,0 +1,47 @@
+# Documentation and old files
+__docs/
+__old__/
+
+# Data directories (experiments, cache, archives)
+data/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Distribution / packaging
+*. egg-info/
+dist/
+build/
+*. egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+. idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git lock files
+*.lock
+. git/index. lock
+
+# Archives (you have many . zip files)
+*.zip
+
+# Logs
+*.log
+
+# Temporary markdown outputs
+output*. md
+discussion*. md
+tree*. md

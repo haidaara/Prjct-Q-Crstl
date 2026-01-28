@@ -8,6 +8,7 @@ import numpy as np
 import math
 from typing import Dict, Optional, Tuple, List 
 from dataclasses import dataclass
+from pathlib import Path
 
 from src.utils.config import ConfigManager
 from src.energy.phason_strain import PhasonStrainCalculator
@@ -67,23 +68,30 @@ class WidomInspiredEnergy:
         
         # WIDOM'S ORIGINAL HIERARCHY
         self.energy_map = {
-            "HIGH_ENERGY": self.params.high_energy_penalty,
-            "MEDIUM_ENERGY": self.params.medium_energy_penalty,
-            "LOW_ENERGY": self.params.low_energy_reference
-        }
+                    "HIGH_ENERGY": self.params.high_energy_penalty,
+                    "MEDIUM_ENERGY": self.params.medium_energy_penalty,
+                    "LOW_ENERGY": self.params.low_energy_reference,
+                    "VACUUM": 0.0
+                }
+
         
         # PERFORMANCE OPTIMIZATION: Vertex class cache
         self._vertex_class_cache = {}
 
         self.phason_calculator = None
         if self.params.phason_enabled:
+            calib_path = self.params.phason_calibration_file
+            if not Path(calib_path).exists():
+                calib_path = str((Path(__file__).resolve().parents[2] / calib_path).resolve())
+
             self.phason_calculator = PhasonStrainCalculator.from_calibration_file(
-                self.params.phason_calibration_file,
+                calib_path,
                 stiffness=self.params.phason_stiffness,
                 max_cache_size=self.params.phason_cache_max,
             )
 
         
+
     def _compute_surface_energy(self, tile_id: int, tiling_data: Dict) -> Tuple[float, int, bool]:
         """
         Surface tension energy from broken bonds.
@@ -138,18 +146,26 @@ class WidomInspiredEnergy:
         # 0. Pores / Removed: Zero energy state
         if tile.get("removed", False) or tile.get("obstacle_type") == "pore":
             tile["local_energy"] = 0.0
-            tile["vertex_class"] = "LOW_ENERGY"
-            tile["energy_class"] = "LOW_ENERGY"
+            
+            if "growth_status_original" not in tile:
+                tile["growth_status_original"] = tile.get("growth_status", None)
+            
+            tile["growth_status"] = "removed"
+            tile["vertex_class"] = "VACUUM"
+            tile["energy_class"] = "VACUUM"
             tile["is_boundary"] = False
-            tile["boundary_kind"] = "bulk"
+            tile["boundary_kind"] = "vacuum"
+    
+            # Vacuum tiles carry no boundary/surface/strain terms
             tile["missing_bonds"] = 0
             tile["surface_energy"] = 0.0
             tile["phason_energy"] = 0.0
+            tile["strain"] = 0.0
             tile["surface_contribution"] = 0.0
             tile["bulk_energy"] = 0.0
-
-
+            
             return 0.0
+
         
         # CRITICAL FIX: Ungrown tiles as vacuum (prevents ghost energy)
         if self.params.treat_ungrown_as_vacuum and tile.get("growth_status") == "ungrown":
@@ -161,6 +177,7 @@ class WidomInspiredEnergy:
             tile["surface_energy"] = 0.0
             tile["vertex_class"] = "LOW_ENERGY"  # Also set geometric class
             tile["phason_energy"] = 0.0
+            tile["strain"] = 0.0
 
             return 0.0
 
@@ -204,6 +221,7 @@ class WidomInspiredEnergy:
         tile["missing_bonds"] = missing_bonds
         tile["is_boundary"] = is_boundary
         tile["phason_energy"] = E_phason
+        tile["strain"] = float(E_phason)  # compatibility with viz "strain" view
 
 
         # 6. ENERGY CLASS (For Visualization)
@@ -313,10 +331,13 @@ class WidomInspiredEnergy:
         total_energy = 0.0
         
         for tile_id, tile in enumerate(tiling_data["tiles"]):
-            # Skip pores in total energy calculation
+            # Always compute local energy to keep per-tile fields consistent,
+            # but exclude removed/pore tiles from the total sum.
+            e_loc = self.compute_local_energy(tile_id, tiling_data)
             if tile.get("removed", False) or tile.get("obstacle_type") == "pore":
                 continue
-            total_energy += self.compute_local_energy(tile_id, tiling_data)
+            total_energy += e_loc
+
             
         return total_energy
     

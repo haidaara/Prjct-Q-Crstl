@@ -24,6 +24,28 @@ from .style import mpl_style, save_figure, resolve_output_path
 PathLike = Union[str, Path]
 
 
+def _as_float_or_nan(x: Any) -> float:
+    """Convert to float; return NaN if missing/invalid.
+
+    Why: spatial plots must not silently treat missing fields as 0.0
+    (that produces misleading 'uniform color / clean' plots).
+    """
+    if x is None:
+        return float("nan")
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        return float("nan")
+
+
+def _nanmean_or_nan(x: np.ndarray) -> float:
+    """np.nanmean with a safe all-NaN guard."""
+    x = np.asarray(x, dtype=float)
+    if x.size == 0 or np.all(np.isnan(x)):
+        return float("nan")
+    return float(np.nanmean(x))
+
+
 def extract_obstacle_centers(
     state: Dict[str, Any],
     *,
@@ -47,20 +69,52 @@ def compute_distance_to_nearest_obstacle(
     *,
     treat_immobile_as_fixed: bool = False,
 ) -> np.ndarray:
-    """For each tile id order in iter_tiles(state), compute distance to nearest obstacle.
+    """For each tile (iteration order of iter_tiles), compute distance to the nearest obstacle.
 
-    Returns an array aligned with the same iteration order.
+    Distance definition:
+      - If obstacle_metadata provides centers + radii (positions + radii),
+        distance is computed to the *obstacle boundary*: min(||x-c_i|| - R_i).
+      - Otherwise (e.g. fixed defects encoded by immobile tiles), we fall back to
+        distance to the nearest *obstacle-tile center*.
+
+    Returns an array aligned with iter_tiles(state).
     """
+    meta = state.get("obstacle_metadata") or {}
+    positions = meta.get("positions")
+    radii = meta.get("radii")
+
+    use_boundary = (
+        isinstance(positions, list)
+        and len(positions) > 0
+        and isinstance(radii, list)
+        and len(radii) == len(positions)
+    )
+
+    if use_boundary:
+        centers = np.asarray(positions, dtype=float)
+        r = np.asarray(radii, dtype=float)
+        dists: List[float] = []
+        for _tid, t in iter_tiles(state):
+            c = t.get("center")
+            if c is None:
+                dists.append(np.nan)
+                continue
+            p = np.array([float(c[0]), float(c[1])], dtype=float)
+            diff = centers - p
+            d = np.sqrt(np.sum(diff * diff, axis=1)) - r
+            dists.append(float(np.min(d)))
+        return np.asarray(dists, dtype=float)
+
+    # Fallback: obstacle tiles (removed/fixed/immobile tiles)
     obstacles = extract_obstacle_centers(state, treat_immobile_as_fixed=treat_immobile_as_fixed)
-    dists = []
+    dists: List[float] = []
 
     if obstacles.size == 0:
-        # No obstacles: distances are NaN
         for _tid, _t in iter_tiles(state):
             dists.append(np.nan)
         return np.asarray(dists, dtype=float)
 
-    for tid, t in iter_tiles(state):
+    for _tid, t in iter_tiles(state):
         c = t.get("center")
         if c is None:
             dists.append(np.nan)
@@ -71,6 +125,7 @@ def compute_distance_to_nearest_obstacle(
         dists.append(float(np.min(d)))
 
     return np.asarray(dists, dtype=float)
+
 
 
 def compute_spatial_bin_stats(
@@ -97,9 +152,10 @@ def compute_spatial_bin_stats(
     active_mask = []
 
     for tid, t in iter_tiles(state):
-        energies.append(float(t.get("local_energy", 0.0) or 0.0))
-        strains.append(float(t.get("phason_energy", 0.0) or 0.0))
+        energies.append(_as_float_or_nan(t.get("local_energy")))
+        strains.append(_as_float_or_nan(t.get("phason_energy")))
         active_mask.append(obs.get(tid) is None)
+
 
     energies = np.asarray(energies, dtype=float)
     strains = np.asarray(strains, dtype=float)
@@ -143,18 +199,45 @@ def compute_spatial_bin_stats(
             "tile_count": n,
             "defect_count": dcount,
             "defect_density": dcount / n,
-            "mean_energy": float(np.mean(energies[in_bin])),
-            "mean_strain_energy": float(np.mean(strains[in_bin])),
+            "mean_energy": _nanmean_or_nan(energies[in_bin]),
+            "mean_strain_energy": _nanmean_or_nan(strains[in_bin]),
+
         }
+
+    meta = state.get("obstacle_metadata") or {}
+    positions = meta.get("positions")
+    radii = meta.get("radii")
+    use_boundary = (
+        isinstance(positions, list)
+        and len(positions) > 0
+        and isinstance(radii, list)
+        and len(radii) == len(positions)
+    )
+
+    missing_local_energy = int(np.sum(np.isnan(energies) & active_mask))
+    missing_phason_energy = int(np.sum(np.isnan(strains) & active_mask))
 
     summary = {
         "total_tiles": total_tiles,
         "total_defects": total_defects,
         "overall_defect_density": (total_defects / total_tiles) if total_tiles else 0.0,
-        "mean_energy": float(np.mean(energies[active_mask])) if total_tiles else float("nan"),
-        "mean_strain_energy": float(np.mean(strains[active_mask])) if total_tiles else float("nan"),
-        "num_obstacles": int(np.sum([v is not None for v in obs.values()])),
+        "mean_energy": _nanmean_or_nan(energies[active_mask]) if total_tiles else float("nan"),
+        "mean_strain_energy": _nanmean_or_nan(strains[active_mask]) if total_tiles else float("nan"),
+
+        # Truthful obstacle accounting:
+        "num_obstacle_tiles": int(np.sum([v is not None for v in obs.values()])),
+        "num_obstacles_metadata": int(len(positions)) if isinstance(positions, list) else 0,
+
+        # Make interpretation explicit:
+        "defect_threshold": float(defect_threshold),
+        "defect_definition": "local_energy > defect_threshold (active tiles only)",
+        "distance_definition": "boundary" if use_boundary else "nearest_obstacle_tile_center",
+
+        # Diagnostics (catch silent bad data):
+        "missing_local_energy_active": missing_local_energy,
+        "missing_phason_energy_active": missing_phason_energy,
     }
+
 
     return {"bin_stats": bin_stats, "summary": summary}
 
@@ -189,7 +272,15 @@ def plot_defect_density_by_distance(
         ax.set_xticklabels(bins, rotation=45, ha="right")
         ax.set_xlabel("Distance bin")
         ax.set_ylabel("Defect density")
-        ax.set_title("Defect density vs distance to obstacle")
+        thr = spatial_snapshot.get("summary", {}).get("defect_threshold", None)
+        dist_def = spatial_snapshot.get("summary", {}).get("distance_definition", "")
+        if thr is None:
+            ax.set_title("Defect density vs distance to obstacle")
+        else:
+            ax.set_title(
+                f"Defect density vs distance to obstacle "
+                f"(defect: local_energy > {float(thr):g}; distance: {dist_def})"
+            )
         ax.grid(True, alpha=0.3, axis="y")
 
         if save_path is not None or outdir is not None:

@@ -37,7 +37,12 @@ class Snapshotter:
         path = self.run_dir / self.snapshots_subdir / fname
 
         payload = {
-            "meta": {"step": int(step), "label": str(label), "temperature": float(temperature)},
+            "meta": {
+                "run_id": str(tiling.get("metadata", {}).get("run_id", "UNKNOWN_RUN")),
+                "step": int(step),
+                "label": str(label),
+                "temperature": float(temperature),
+            },
             "metrics": metrics or {},
             "obstacle_metadata": tiling.get("obstacle_metadata"),
             "tiling": tiling,

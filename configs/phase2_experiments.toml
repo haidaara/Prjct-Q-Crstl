@@ -92,7 +92,7 @@ calibration_file = "configs/phason_calibration.json"
 
 # what to probe
 tile_id = 100
-samples = 200
+samples = 3000
 rng_seed = 42
 
 # console output

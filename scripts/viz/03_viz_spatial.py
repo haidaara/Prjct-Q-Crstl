@@ -27,8 +27,10 @@ from __future__ import annotations
 
 import sys
 import time
+import json
 import argparse
 from pathlib import Path
+
 
 # Ensure project root is on PYTHONPATH
 ROOT = Path(__file__).resolve().parents[2]
@@ -58,8 +60,13 @@ def main() -> int:
     parser.add_argument("--bin_edges", default=None, help="Bin edges for distance analysis (comma-separated)")
     parser.add_argument("--defect_threshold", type=float, default=None, 
                        help="Override defect threshold (default: from TOML)")
-    parser.add_argument("--treat_immobile_as_fixed", action="store_true", default=None,
-                       help="Treat immobile tiles as fixed obstacles (default: from TOML)")
+    parser.add_argument(
+        "--treat_immobile_as_fixed",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Treat immobile tiles as fixed obstacles (default: from TOML)",
+    )
+
     parser.add_argument("--plots", default=None, help="Override enabled plots (comma-separated)")
 
     
@@ -134,6 +141,8 @@ def main() -> int:
                 defect_threshold=defect_threshold,
                 treat_immobile_as_fixed=treat_immobile_as_fixed,
             )
+            print("Spatial summary:")
+            print(json.dumps(snap.get("summary", {}), indent=2, sort_keys=True))
             plot_defect_density_by_distance(snap, outdir=outdir, cfg=cfg)
         
         elapsed = time.time() - start_time
@@ -177,9 +186,10 @@ def main() -> int:
     outdir.mkdir(parents=True, exist_ok=True)
     state = load_tiling_state(args.input)
     
-    # Check if spatial plot is enabled
+    # Check if spatial plot is enabled - FIXED: Use get_enabled_plots consistently
     enabled_plots = _utils.get_enabled_plots(viz, "spatial", None, args.plots)
-    if _utils.is_plot_enabled("defect_density_by_distance", viz, None):
+    # FIXED THE BUG: Changed from "defect_density_by_distance" in enabled_plots to NOT in
+    if "defect_density_by_distance" not in enabled_plots:
         print("Note: defect_density_by_distance not enabled in TOML -> skipped")
         print("      Enable it in TOML [viz_jobs.plots_enabled] or use --plots to override")
         return 0
@@ -191,6 +201,8 @@ def main() -> int:
         defect_threshold=defect_threshold,
         treat_immobile_as_fixed=treat_immobile_as_fixed,
     )
+    print("Spatial summary:")
+    print(json.dumps(snap.get("summary", {}), indent=2, sort_keys=True))
     plot_defect_density_by_distance(snap, outdir=outdir, cfg=cfg)
     
     elapsed = time.time() - start_time

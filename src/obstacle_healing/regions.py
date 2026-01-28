@@ -41,7 +41,7 @@ def select_measurement_tiles(
             return []
         selected: Set[int] = set()
         for idx, t in enumerate(tiles):
-            if t.get("removed", False):
+            if t.get("removed", False) or t.get("immobile", False):
                 continue
             cx, cy = map(float, t.get("center", (0.0, 0.0)))
             p = (cx, cy)
@@ -55,16 +55,28 @@ def select_measurement_tiles(
         return sorted(selected)
 
     if mode == "fixed_defects":
-        immobile = {i for i, t in enumerate(tiles) if (t.get("immobile", False) and not t.get("removed", False))}
-        if not immobile:
+        # Seed from TRUE fixed defects (obstacle_type), not from all immobile tiles (boundary pins are immobile too).
+        immobile_all = {i for i, t in enumerate(tiles) if (t.get("immobile", False) and not t.get("removed", False))}
+
+        seeds = {
+            i for i, t in enumerate(tiles)
+            if (t.get("obstacle_type") == "fixed_defect") and (not t.get("removed", False))
+        }
+
+        # Backward compatibility: if obstacle_type is missing/empty, fall back to old behavior.
+        if not seeds:
+            seeds = set(immobile_all)
+
+        if not seeds:
             return []
+
         g = tiling.get("adjacency_graph") or {}
 
         def neigh(node: int) -> List[int]:
             return [int(x) for x in g.get(str(node), g.get(node, [])) or []]
 
-        frontier = set(immobile)
-        visited = set(immobile)
+        frontier = set(seeds)
+        visited = set(seeds)
         for _ in range(int(max(fixed_k, 0))):
             nxt = set()
             for u in frontier:
@@ -76,8 +88,10 @@ def select_measurement_tiles(
             if not frontier:
                 break
 
-        visited = {i for i in visited if (i not in immobile and not tiles[i].get("removed", False))}
+        # Measurement = k-hop neighborhood excluding any immobile/removed tiles (we measure only on healable tiles).
+        visited = {i for i in visited if (i not in immobile_all and not tiles[i].get("removed", False))}
         return sorted(visited)
+
 
     raise ValueError(f"Unknown obstacle mode: {mode}")
 
@@ -114,15 +128,25 @@ def select_active_tiles(
 
     if mode == "fixed_defects":
         g = tiling.get("adjacency_graph") or {}
-        immobile = {i for i, t in enumerate(tiles) if (t.get("immobile", False) and not t.get("removed", False))}
-        if not immobile:
+        immobile_all = {i for i, t in enumerate(tiles) if (t.get("immobile", False) and not t.get("removed", False))}
+
+        seeds = {
+            i for i, t in enumerate(tiles)
+            if (t.get("obstacle_type") == "fixed_defect") and (not t.get("removed", False))
+        }
+
+        # Backward compatibility: fall back to old behavior if obstacle_type is missing/empty.
+        if not seeds:
+            seeds = set(immobile_all)
+
+        if not seeds:
             return []
 
         def neigh(node: int) -> List[int]:
             return [int(x) for x in g.get(str(node), g.get(node, [])) or []]
 
-        frontier = set(immobile)
-        visited = set(immobile)
+        frontier = set(seeds)
+        visited = set(seeds)
         for _ in range(int(max(fixed_active_k, 0))):
             nxt = set()
             for u in frontier:
@@ -134,6 +158,7 @@ def select_active_tiles(
             if not frontier:
                 break
 
+        # Active = healable (non-removed, non-immobile) neighborhood, plus measurement_ids.
         active = {i for i in visited if (not tiles[i].get("removed", False) and not tiles[i].get("immobile", False))}
         active.update(measurement_ids)
         return sorted(active)

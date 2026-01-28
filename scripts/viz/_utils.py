@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import sys
 import time
+import copy
 from pathlib import Path
 from typing import Any, List, Optional, Set, Dict
+
 
 # Add project root to Python path
 ROOT = Path(__file__).resolve().parents[2]
@@ -38,7 +40,7 @@ VALID_STRAIN_PLOTS = {
 }
 
 VALID_MOVIE_PLOTS = {
-    "movie"
+    "movie", "storyboard"
 }
 
 
@@ -138,8 +140,18 @@ def get_enabled_plots(
         return {"pair", "change_panel"}
     elif plot_category == "spatial":
         return {"defect_density_by_distance"}
+    elif plot_category == "movie":
+        # Batch-mode expectation: a job with kind="movie"/"storyboard" should run
+        # even if no plots_enabled section exists.
+        if job_config:
+            kind = str(job_config.get("kind", "")).strip().lower()
+            if kind in VALID_MOVIE_PLOTS:
+                return {kind}
+        # Single-run default: make a movie unless the user asked otherwise.
+        return {"movie"}
     else:
         return set()
+
 
 
 def get_parameter(
@@ -163,7 +175,34 @@ def get_parameter(
     return default_value
 
 
+def cfg_with_job_overrides(cfg: Dict[str, Any], job_config: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a deep-copied cfg where cfg['viz_jobs'] is overridden by matching keys in job_config.
+
+    This is required because movie/storyboard rendering reads scales/dpi/figsize/gamma from cfg['viz_jobs'],
+    not directly from the job dict.
+    """
+    merged = copy.deepcopy(cfg)
+    viz = merged.setdefault("viz_jobs", {})
+
+    # Only allow overriding visualization policy keys (avoid leaking routing fields like snapshot_dir/outdir/kind).
+    allowed: Set[str] = set(viz.keys()) | {
+        "energy_vmin", "energy_vmax", "strain_vmin", "strain_vmax",
+        "energy_gamma", "energy_percentile", "strain_percentile",
+        "defect_threshold", "treat_immobile_as_fixed",
+        "movie_dpi", "movie_figsize", "movie_title",
+        "fps", "format", "movie_view",
+        "n_frames", "ncols","matrix_2x2_panels",
+    }
+
+    for k, v in job_config.items():
+        if k in allowed:
+            viz[k] = v
+
+    return merged
+
+
 class Timer:
+
     """Simple context manager for timing code execution."""
     
     def __enter__(self):
@@ -224,3 +263,44 @@ def is_plot_enabled(plot_name: str, viz_config: Dict[str, Any], job_config: Opti
 
     # Finally: global plots_enabled flag
     return bool(viz_config.get("plots_enabled", {}).get(plot_name, False))
+
+
+def resolve_parameter(
+    cli_value: Any,
+    job_value: Any,
+    config_value: Any,
+    default_value: Any,
+) -> Any:
+    """Resolve parameter with proper precedence: CLI > Job > Config > Default.
+    
+    Handles None correctly for CLI values (None means not set by user).
+    """
+    if cli_value is not None:
+        # User explicitly provided CLI value (even if it's None)
+        return cli_value
+    
+    if job_value is not None:
+        # Job has explicit value
+        return job_value
+    
+    if config_value is not None:
+        # Config has value
+        return config_value
+    
+    return default_value
+# Add to _utils.py after existing functions:
+
+def resolve_boolean_param(
+    cli_value: Optional[bool],
+    job_value: Optional[bool],
+    config_value: Optional[bool],
+    default: bool = False
+) -> bool:
+    """Resolve boolean parameter with proper precedence."""
+    if cli_value is not None:
+        return cli_value
+    if job_value is not None:
+        return job_value
+    if config_value is not None:
+        return config_value
+    return default

@@ -37,6 +37,7 @@ if str(ROOT) not in sys.path:
 from src.viz.config import load_publication_config, get_viz_jobs
 from src.viz.io import load_tiling_state, short_path
 from src.viz.progress import progress
+import _utils
 from src.viz.static_plots import (
     plot_physics_matrix,
     plot_publication_grid_3x3,
@@ -68,9 +69,14 @@ def _csv_list(s: str) -> list[str]:
     return [x.strip() for x in (s or "").split(",") if x.strip()]
 
 
-def _csv_floats(s: str) -> list[float]:
-    """Parse comma-separated string to list of floats."""
-    return [float(x.strip()) for x in (s or "").split(",") if x.strip()]
+def _csv_floats(s) -> list[float]:
+    """Parse comma-separated string OR TOML list to list of floats."""
+    if s is None:
+        return []
+    if isinstance(s, (list, tuple)):
+        return [float(x) for x in s if x is not None]
+    return [float(x.strip()) for x in str(s).split(",") if x.strip()]
+
 
 
 def _get_plots_from_toml(viz_config: dict) -> set[str]:
@@ -140,7 +146,10 @@ def main() -> int:
     parser.add_argument("--config", default=None, help="Path to publication_plots.toml (optional)")
     parser.add_argument("--plots", default=None, 
                        help="Comma-separated plot names (overrides TOML, leave empty to use all TOML-enabled plots)")
+    parser.add_argument("--matrix_2x2_panels", default=None,
+                       help="Comma-separated 4 panel names for matrix_2x2 (e.g. geometry,energy,strain,growth)")
     parser.add_argument("--bin_edges", default=None, help="Bin edges for strain_vs_distance (comma-separated)")
+
     
     args = parser.parse_args()
     
@@ -188,25 +197,28 @@ def main() -> int:
             outdir.mkdir(parents=True, exist_ok=True)
             state = load_tiling_state(inp)
             
+            matrix_panels_cli = _csv_list(args.matrix_2x2_panels) if args.matrix_2x2_panels else None
+            job_cfg = _utils.cfg_with_job_overrides(cfg, job)
+            
             for plot_type in progress(sorted(plots_to_generate), desc="Generating plots"):
                 if plot_type == "matrix_2x2":
-                    plot_physics_matrix(state, outdir=outdir, cfg=cfg)
+                    plot_physics_matrix( state, outdir=outdir, cfg=job_cfg, panels=matrix_panels_cli)
                 elif plot_type == "grid_3x3":
-                    plot_publication_grid_3x3(state, outdir=outdir, cfg=cfg)
+                    plot_publication_grid_3x3(state, outdir=outdir, cfg=job_cfg)
                 elif plot_type == "diffraction":
-                    plot_diffraction_pattern(state, outdir=outdir, cfg=cfg)
+                    plot_diffraction_pattern(state, outdir=outdir, cfg=job_cfg)
                 elif plot_type == "vertex_dist":
-                    plot_vertex_distribution(state, outdir=outdir, cfg=cfg)
+                    plot_vertex_distribution(state, outdir=outdir, cfg=job_cfg)
                 elif plot_type == "radial_defects":
-                    plot_radial_defect_density(state, outdir=outdir, cfg=cfg)
+                    plot_radial_defect_density(state, outdir=outdir, cfg=job_cfg)
                 elif plot_type == "strain_map":
-                    plot_strain_energy_map(state, outdir=outdir, cfg=cfg)
+                    plot_strain_energy_map(state, outdir=outdir, cfg=job_cfg)
                 elif plot_type == "strain_hist":
-                    plot_strain_histogram(state, outdir=outdir, cfg=cfg)
+                    plot_strain_histogram(state, outdir=outdir, cfg=job_cfg)
                 elif plot_type == "strain_vs_distance":
                     edges_raw = args.bin_edges or job.get("bin_edges") or "0,2,4,6,8,10,12"
                     edges = _csv_floats(str(edges_raw))
-                    plot_strain_vs_distance(state, bin_edges=edges, outdir=outdir, cfg=cfg)
+                    plot_strain_vs_distance(state, bin_edges=edges, outdir=outdir, cfg=job_cfg)
                 else:
                     print(f"Error: Unknown plot type for state visualization: {plot_type}")
         

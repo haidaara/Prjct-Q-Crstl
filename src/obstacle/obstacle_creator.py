@@ -54,11 +54,19 @@ class ObstacleCreator:
             tile.setdefault("removed", False)
             tile.setdefault("immobile", False)
             tile.setdefault("obstacle_type", "none")
+
+            # Preserve provenance once (MUST happen before pores set growth_status="removed")
+            tile.setdefault("growth_status_original", "grown")
+
             # WEEK 1 PHYSICS FIELDS:
             tile.setdefault("vertex_class", "LOW_ENERGY")
             tile.setdefault("local_energy", 0.0)
-            tile.setdefault("growth_status", "ungrown")
+
+            # Obstacle stage baseline is a fully-grown tiling (safer with treat_ungrown_as_vacuum)
+            tile.setdefault("growth_status", "grown")
+
             tile.setdefault("flippable", True)
+
         
         if obstacle_spec.type == "pores":
             result = self._create_pores_optimized(modified_tiling, obstacle_spec)
@@ -109,15 +117,27 @@ class ObstacleCreator:
         removed_count = 0
         for i, tile in enumerate(tiles):
             if removed_mask[i]:
-                tile["removed"] = True
-                tile["obstacle_type"] = "pore"
-                tile["growth_status"] = "removed"  #(or "ungrown")
-                # CRITICAL: Pores should not participate in energy calculations
-                tile["vertex_class"] = "LOW_ENERGY"
-                tile["energy_class"] = "LOW_ENERGY"
-                tile["local_energy"] = 0.0
-                tile["flippable"] = False
-                removed_count += 1
+                    tile["removed"] = True
+                    tile["obstacle_type"] = "pore"
+
+                    # Truthful semantics for downstream viz/metrics
+                    tile["growth_status"] = "removed"
+                    tile["vertex_class"] = "VACUUM"
+                    tile["energy_class"] = "VACUUM"
+                    tile["boundary_kind"] = "vacuum"
+                    tile["is_boundary"] = False
+
+                    # Ensure pores do not contribute energy terms
+                    tile["local_energy"] = 0.0
+                    tile["surface_energy"] = 0.0
+                    tile["missing_bonds"] = 0
+                    tile["phason_energy"] = 0.0
+                    tile["surface_contribution"] = 0.0
+                    tile["bulk_energy"] = 0.0
+
+                    tile["flippable"] = False
+                    removed_count += 1
+
                 
         print(f"   → Removed {removed_count} tiles within {len(spec.positions)} pore regions")
         self._update_adjacency_batch(tiling_data, removed_mask)
@@ -173,11 +193,10 @@ class ObstacleCreator:
                 continue
                 
             # For active tiles: keep only non-removed neighbors
-            adjacency_graph[tile_id] = [
+            adjacency_graph[tile_id] = sorted([
                 int(n) for n in neighbors 
                 if not removed_mask[self._id_to_index[int(n)]]
-            ]
-                
+            ])
         # Update tile neighbor lists
         for i, tile in enumerate(tiles):
             # NEW: preserve original neighbor ids before pruning (for truthful diagnostics/classification)
@@ -185,11 +204,33 @@ class ObstacleCreator:
 
             if removed_mask[i]:
                 tile["neighbors"] = []  # Critical: removed tiles have no neighbors
+                tile["flippable"] = False
+
+                # --- Option 1: VACUUM semantics override (truthful-by-default) ---
+                tile.setdefault("growth_status_original", "grown")
+
+                tile["growth_status"] = "removed"
+                tile["boundary_kind"] = "vacuum"
+                tile["vertex_class"] = "VACUUM"
+                tile["energy_class"] = "VACUUM"
+                tile["is_boundary"] = False
+
+                # Ensure vacuum energetics stay strictly zero
+                tile["local_energy"] = 0.0
+                tile["surface_energy"] = 0.0
+                tile["missing_bonds"] = 0
+                tile["phason_energy"] = 0.0
+                tile["strain"] = 0.0
+                tile["surface_contribution"] = 0.0
+                tile["bulk_energy"] = 0.0
+
+
+            
             else:
-                tile["neighbors"] = [
+                tile["neighbors"] = sorted([
                     int(n) for n in tile["neighbors_full"]
                     if not removed_mask[self._id_to_index[int(n)]]
-                ]
+                ])
 
                 
     def _fast_deep_copy(self, data: Dict) -> Dict:
@@ -199,8 +240,46 @@ class ObstacleCreator:
     def _finalize_obstacle_data(self, tiling_data: Dict, spec: ObstacleSpec) -> Dict:
         """Add research metadata efficiently"""
         tiles = tiling_data["tiles"]
+
+        # Canonicalize topology ordering across obstacle types (deterministic + compare-safe)
+        if "adjacency_graph" in tiling_data:
+            tiling_data["adjacency_graph"] = {
+                str(k): sorted(int(n) for n in v)
+                for k, v in tiling_data["adjacency_graph"].items()
+            }
+
+        for tile in tiles:
+            if "neighbors" in tile and tile["neighbors"] is not None:
+                tile["neighbors"] = sorted(int(n) for n in tile["neighbors"])
+            if "neighbors_full" in tile and tile["neighbors_full"] is not None:
+                # Keep original order (do NOT sort), but ensure ints
+                tile["neighbors_full"] = [int(n) for n in tile["neighbors_full"]]
+
+        # Defensive: keep outputs truthful for viz/metrics
+        for tile in tiles:
+
+            if tile.get("removed", False):
+                tile["growth_status"] = "removed"
+                tile["boundary_kind"] = "vacuum"
+                tile["vertex_class"] = "VACUUM"
+                tile["energy_class"] = "VACUUM"
+                tile["flippable"] = False
+                tile["is_boundary"] = False
+                tile["neighbors"] = []
+
+                # Defensive vacuum energetics (export-safe even if earlier steps change later)
+                tile["local_energy"] = 0.0
+                tile["surface_energy"] = 0.0
+                tile["missing_bonds"] = 0
+                tile["phason_energy"] = 0.0
+                tile["strain"] = 0.0
+                tile["surface_contribution"] = 0.0
+                tile["bulk_energy"] = 0.0
+
+
         removed_count = sum(1 for tile in tiles if tile.get("removed", False))
         immobile_count = sum(1 for tile in tiles if tile.get("immobile", False))
+
         
         tiling_data["obstacle_metadata"] = {
             "type": spec.type,

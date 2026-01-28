@@ -91,8 +91,26 @@ def main() -> int:
                 continue
 
             # Get parameters with proper precedence
-            view = _utils.get_parameter("view", viz, job, args.view, viz.get("compare_view", "energy"))
-            drift = _utils.get_parameter("compare_drift", viz, job, args.drift, False)
+            view = _utils.get_parameter("compare_view", viz, job, args.view, None)
+            if view is None:
+                view = _utils.get_parameter("compare_view", viz, job, args.view, viz.get("compare_view", "energy"))
+                drift = _utils.get_parameter("compare_drift", viz, job, args.drift, False)
+
+            # view aliases for convenience (keep CLI/TOML flexible)
+            if view in ("energy_local", "local_energy"):
+                view = "energy"
+            if view in ("phason", "phason_energy", "phason_strain"):
+                view = "strain"
+
+            # TOML knob for change/drift sensitivity
+            pos_thresh = float(viz.get("compare_position_threshold", 0.01))
+
+
+            # view aliases for convenience
+            if view in ("energy_local", "local_energy"):
+                view = "energy"
+            if view in ("phason", "phason_energy", "phason_strain"):
+                view = "strain"
             
             # Determine output directory
             outdir = _utils.resolve_output_dir(
@@ -121,13 +139,14 @@ def main() -> int:
                 plot_pair(b, h, view=view, outdir=outdir, cfg=cfg)
             
             if "change_panel" in enabled_plots:
-                plot_change_panel(b, h, outdir=outdir, cfg=cfg)
+                plot_change_panel(b, h, outdir=outdir, cfg=cfg, position_threshold=pos_thresh)
+
             
             if "phason_drift_series" in enabled_plots and drift:
                 if damaged:
-                    plot_phason_drift_series(b, [("damaged", d), ("healed", h)], outdir=outdir, cfg=cfg)
+                    plot_phason_drift_series(b, [("damaged", d), ("healed", h)], outdir=outdir, cfg=cfg, position_threshold=pos_thresh)
                 else:
-                    plot_phason_drift_series(b, [("healed", h)], outdir=outdir, cfg=cfg)
+                    plot_phason_drift_series(b, [("healed", h)], outdir=outdir, cfg=cfg, position_threshold=pos_thresh)
         
         elapsed = time.time() - start_time
         print(f"\nCompleted {len(jobs)} jobs in {elapsed:.1f}s")
@@ -142,7 +161,12 @@ def main() -> int:
     
     # Get parameters with proper precedence
     view = _utils.get_parameter("compare_view", viz, None, args.view, "energy")
+    if view in ("energy_local", "local_energy"):
+        view = "energy"
+    if view in ("phason", "phason_energy", "phason_strain"):
+        view = "strain"
     drift = _utils.get_parameter("compare_drift", viz, None, args.drift, False)
+    pos_thresh = float(viz.get("compare_position_threshold", 0.01))
     
     # Determine output directory
     outdir = _utils.resolve_output_dir(

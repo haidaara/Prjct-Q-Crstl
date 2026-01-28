@@ -19,6 +19,7 @@ from .panels import (
     get_obstacle_mask,
     get_energy_map,
     get_phason_energy_map,
+    draw_named_panel,
 )
 from .style import mpl_style, save_figure, resolve_output_path
 from .progress import progress
@@ -75,16 +76,194 @@ def _state_stats(state: Dict[str, Any], *, defect_threshold: float, treat_immobi
 PathLike = Union[str, Path]
 
 
+def draw_matrix_2x2(
+    axes,
+    state: Dict[str, Any],
+    *,
+    panels: Sequence[str],
+    cfg: Dict[str, Any],
+    cache=None,
+    defect_threshold: float = 1.5,
+    treat_immobile_as_fixed: bool = False,
+    line_width: float = 0.5,
+) -> None:
+    """Draw a configurable 2x2 panel matrix into the provided 4 axes.
+
+    Supported panel kinds (same philosophy as grid_3x3):
+      geometry, energy, defects, class, strain, growth,
+      fft, vertex_dist, energy_hist, energy_cdf, energy_quantiles, strain_hist
+
+    Titles are numbered by position (1..4) to remain publication-friendly.
+    """
+    if len(panels) != 4:
+        raise ValueError("matrix_2x2 panels must be a list of exactly 4 panel names")
+
+    if cache is None:
+        cache = build_patch_cache(state)
+
+    viz = cfg.get("viz_jobs", {})
+
+    ep = viz.get("energy_percentile", [5, 99.8])
+    sp = viz.get("strain_percentile", [5, 95])
+    energy_percentile = (float(ep[0]), float(ep[1]))
+    strain_percentile = (float(sp[0]), float(sp[1]))
+
+    energy_gamma = float(viz.get("energy_gamma", 4.0))
+
+    energy_vmin = viz.get("energy_vmin", None)
+    energy_vmax = viz.get("energy_vmax", None)
+    energy_vmin = float(energy_vmin) if energy_vmin is not None else None
+    energy_vmax = float(energy_vmax) if energy_vmax is not None else None
+
+    strain_vmin = viz.get("strain_vmin", None)
+    strain_vmax = viz.get("strain_vmax", None)
+    strain_vmin = float(strain_vmin) if strain_vmin is not None else None
+    strain_vmax = float(strain_vmax) if strain_vmax is not None else None
+
+    stats = _state_stats(
+        state,
+        defect_threshold=defect_threshold,
+        treat_immobile_as_fixed=treat_immobile_as_fixed,
+    )
+
+    def _class_title(prefix: str) -> str:
+        cc = stats.get("class_counts", {}) or {}
+        low = cc.get("LOW_ENERGY", cc.get("low", 0))
+        med = cc.get("MEDIUM_ENERGY", cc.get("medium", 0))
+        high = cc.get("HIGH_ENERGY", cc.get("high", 0))
+        return f"{prefix}Energy Class (L={low}, M={med}, H={high})"
+
+    def _growth_title(prefix: str) -> str:
+        gc = stats.get("growth_counts", {}) or {}
+        return (
+            f"{prefix}Growth "
+            f"(seed={gc.get('seed',0)}, frontier={gc.get('frontier',0)}, "
+            f"grown={gc.get('grown',0)}, ungrown={gc.get('ungrown',0)})"
+        )
+
+    for i, kind in enumerate(panels):
+        ax = axes[i]
+        k = str(kind).lower().strip()
+        prefix = f"{i+1}. "
+
+        if k == "geometry":
+            draw_geometry(
+                ax,
+                state,
+                cache=cache,
+                treat_immobile_as_fixed=treat_immobile_as_fixed,
+                line_width=line_width,
+                title=f"{prefix}Geometry & Obstacles (pores={stats['n_pore']}, fixed={stats['n_fixed']})",
+                legend=True,
+            )
+
+        elif k == "energy":
+            draw_energy(
+                ax,
+                state,
+                cache=cache,
+                treat_immobile_as_fixed=treat_immobile_as_fixed,
+                line_width=line_width,
+                percentile=energy_percentile,
+                gamma=energy_gamma,
+                title=f"{prefix}Local Energy",
+                add_colorbar=True,
+                vmin=energy_vmin,
+                vmax=energy_vmax,
+            )
+
+        elif k == "class":
+            draw_class(
+                ax,
+                state,
+                cache=cache,
+                prefer="energy_class",
+                treat_immobile_as_fixed=treat_immobile_as_fixed,
+                line_width=line_width,
+                title=_class_title(prefix),
+                legend=True,
+            )
+
+        elif k == "growth":
+            draw_growth(
+                ax,
+                state,
+                cache=cache,
+                treat_immobile_as_fixed=treat_immobile_as_fixed,
+                line_width=line_width,
+                title=_growth_title(prefix),
+                legend=True,
+            )
+
+        elif k == "strain":
+            draw_strain(
+                ax,
+                state,
+                cache=cache,
+                treat_immobile_as_fixed=treat_immobile_as_fixed,
+                line_width=line_width,
+                percentile=strain_percentile,
+                title=f"{prefix}Phason Strain Energy",
+                add_colorbar=True,
+                vmin=strain_vmin,
+                vmax=strain_vmax,
+            )
+
+        elif k == "defects":
+            draw_defects(
+                ax,
+                state,
+                cache=cache,
+                defect_threshold=defect_threshold,
+                treat_immobile_as_fixed=treat_immobile_as_fixed,
+                line_width=line_width,
+                title=f"{prefix}Defects (E≥{defect_threshold})",
+                legend=False,
+            )
+
+        elif k == "fft":
+            _draw_fft_panel(ax, state, add_colorbar=False)
+            ax.set_title(f"{prefix}Diffraction (FFT)")
+
+        elif k == "vertex_dist":
+            _draw_vertex_dist_panel(ax, state)
+            ax.set_title(f"{prefix}Vertex Distribution")
+
+        elif k == "energy_hist":
+            _draw_energy_hist_panel(ax, state)
+            ax.set_title(f"{prefix}Energy Histogram")
+
+        elif k == "energy_cdf":
+            _draw_energy_cdf_panel(ax, state)
+            ax.set_title(f"{prefix}Energy CDF")
+
+        elif k == "energy_quantiles":
+            _draw_energy_quantiles_panel(ax, state)
+            ax.set_title(f"{prefix}Energy Quantiles")
+
+        elif k == "strain_hist":
+            _draw_strain_hist_panel(ax, state)
+            ax.set_title(f"{prefix}Strain Histogram")
+
+        else:
+            ax.text(0.5, 0.5, f"Unknown panel\n'{kind}'", ha="center", va="center", transform=ax.transAxes)
+            ax.axis("off")
+
+
 def plot_physics_matrix(
     state: Dict[str, Any],
     *,
+    panels: Optional[Sequence[str]] = None,
     save_path: Optional[PathLike] = None,
     config_path: Optional[PathLike] = None,
     cfg: Optional[Dict[str, Any]] = None,
     outdir: Optional[PathLike] = None,
     title: Optional[str] = None,
     defect_threshold: Optional[float] = None,
+    log: bool = True,
 ) -> plt.Figure:
+
+
     """2x2 publication matrix.
 
     Panels:
@@ -98,6 +277,7 @@ def plot_physics_matrix(
 
     treat_immobile_as_fixed = bool(viz.get("treat_immobile_as_fixed", False))
     defect_threshold = float(defect_threshold if defect_threshold is not None else viz.get("defect_threshold", 1.5))
+
     ep = viz.get("energy_percentile", [5, 99.8])
     sp = viz.get("strain_percentile", [5, 95])
     energy_percentile = (float(ep[0]), float(ep[1]))
@@ -105,30 +285,96 @@ def plot_physics_matrix(
 
     energy_gamma = float(viz.get("energy_gamma", 4.0))
 
-    figsize = tuple(cfg.get("figure", {}).get("matrix_figsize", [18, 18]))
+    energy_vmin = viz.get("energy_vmin", None)
+    energy_vmax = viz.get("energy_vmax", None)
+    energy_vmin = float(energy_vmin) if energy_vmin is not None else None
+    energy_vmax = float(energy_vmax) if energy_vmax is not None else None
+
+    strain_vmin = viz.get("strain_vmin", None)
+    strain_vmax = viz.get("strain_vmax", None)
+    strain_vmin = float(strain_vmin) if strain_vmin is not None else None
+    strain_vmax = float(strain_vmax) if strain_vmax is not None else None
+
+    fs = viz.get("matrix_figsize", None)
+    figsize = tuple(fs if fs is not None else cfg.get("figure", {}).get("matrix_figsize", [18, 18]))
     lw = float(cfg.get("lines", {}).get("line_width", 0.5))
 
     cache = build_patch_cache(state)
     stats = _state_stats(state, defect_threshold=defect_threshold, treat_immobile_as_fixed=treat_immobile_as_fixed)
 
+    default_panels = ["geometry", "energy", "class", "growth"]
+    if panels is None:
+        panels = viz.get("matrix_2x2_panels", default_panels)
+    panels = [str(p).strip() for p in panels]
+    if len(panels) != 4:
+        raise ValueError(f"matrix_2x2_panels must have exactly 4 entries, got {len(panels)}")
+
     with mpl_style(cfg):
         fig, axes = plt.subplots(2, 2, figsize=figsize)
         axes = axes.ravel()
 
-        draw_geometry(axes[0], state, cache=cache, treat_immobile_as_fixed=treat_immobile_as_fixed,
-                      line_width=lw, title=f"1. Geometry & Obstacles (N={stats['n_total']}, pores={stats['n_pore']}, fixed={stats['n_fixed']})", legend=True)
+        for ax, kind in zip(axes, panels):
+            k = str(kind).lower().strip()
 
-        draw_energy(axes[1], state, cache=cache, treat_immobile_as_fixed=treat_immobile_as_fixed,
-                    line_width=lw, percentile=energy_percentile, gamma=energy_gamma,
-                    title=f"2. Local Energy (mean={stats['e_mean']:.3f}, defects={stats['n_defects']})", add_colorbar=True)
+            panel_kwargs: Dict[str, Any] = dict(
+                cache=cache,
+                treat_immobile_as_fixed=treat_immobile_as_fixed,
+                line_width=lw,
+                title=None,
+            )
 
-        draw_class(axes[2], state, cache=cache, treat_immobile_as_fixed=treat_immobile_as_fixed,
-                   line_width=lw, prefer="energy_class", title=_format_class_title(stats), legend=True)
+            if k in {"geometry", "geom"}:
+                panel_kwargs.update(
+                    legend=True,
+                    title=f"1. Geometry & Obstacles (N={stats['n_total']}, pores={stats['n_pore']}, fixed={stats['n_fixed']})",
+                )
 
-        draw_growth(axes[3], state, cache=cache, treat_immobile_as_fixed=treat_immobile_as_fixed,
-                    line_width=lw, title=(
-                        f"4. Growth (seed={stats['growth_counts'].get('seed',0)}, frontier={stats['growth_counts'].get('frontier',0)}, grown={stats['growth_counts'].get('grown',0)}, ungrown={stats['growth_counts'].get('ungrown',0)})"
-                    ), legend=True)
+            elif k in {"energy", "energy_local", "local_energy"}:
+                panel_kwargs.update(
+                    add_colorbar=True,
+                    percentile=energy_percentile,
+                    gamma=energy_gamma,
+                    vmin=energy_vmin,
+                    vmax=energy_vmax,
+                    title="Local Energy",
+                )
+
+            elif k in {"class", "energy_class"}:
+                panel_kwargs.update(
+                    prefer="energy_class",
+                    legend=True,
+                    title=_format_class_title(stats),
+                )
+
+            elif k in {"growth"}:
+                panel_kwargs.update(
+                    legend=True,
+                    title=(
+                        f"4. Growth (seed={stats['growth_counts'].get('seed',0)}, frontier={stats['growth_counts'].get('frontier',0)}, "
+                        f"grown={stats['growth_counts'].get('grown',0)}, ungrown={stats['growth_counts'].get('ungrown',0)})"
+                    ),
+                )
+
+            elif k in {"strain", "phason", "phason_energy"}:
+                panel_kwargs.update(
+                    add_colorbar=True,
+                    percentile=strain_percentile,
+                    vmin=strain_vmin,
+                    vmax=strain_vmax,
+                    title="Phason strain energy",
+                )
+
+            elif k in {"defects", "defect"}:
+                panel_kwargs.update(
+                    defect_threshold=defect_threshold,
+                    title="Defects",
+                )
+
+            try:
+                draw_named_panel(ax, state, k, **panel_kwargs)
+            except Exception as e:
+                ax.text(0.5, 0.5, f"Panel '{k}' failed:\n{e}", ha="center", va="center", transform=ax.transAxes)
+                ax.axis("off")
 
         if title:
             fig.suptitle(title, fontweight="bold")
@@ -140,9 +386,11 @@ def plot_physics_matrix(
 
         if save_path is not None or outdir is not None:
             saved = save_figure(fig, p, cfg)
-            print(f"   📊 Saved 2x2 matrix: {short_path(saved)}")
+            if log:
+                print(f"Saved 2x2 matrix: {short_path(saved)}")
 
     return fig
+
 
 
 # Backward-compatible alias used in some scripts
@@ -190,13 +438,21 @@ def plot_publication_grid_3x3(
     strain_percentile = (float(sp[0]), float(sp[1]))
 
     energy_gamma = float(viz.get("energy_gamma", 4.0))
+    energy_vmin = viz.get("energy_vmin", None)
+    energy_vmax = viz.get("energy_vmax", None)
+    energy_vmin = float(energy_vmin) if energy_vmin is not None else None
+    energy_vmax = float(energy_vmax) if energy_vmax is not None else None
 
     if panels is None:
-        panels = [
-            "geometry", "energy", "defects",
-            "class", "strain", "growth",
-            "fft", "energy_cdf", "energy_quantiles",
-        ]
+        panels = viz.get(
+            "grid_3x3_panels",
+            [
+                "geometry", "energy", "defects",
+                "class", "strain", "growth",
+                "fft", "energy_cdf", "energy_quantiles",
+            ],
+        )
+
 
     if len(panels) != 9:
         raise ValueError("panels must be a list of exactly 9 panel names")
@@ -214,41 +470,59 @@ def plot_publication_grid_3x3(
             ax = axes[i]
             k = str(kind).lower().strip()
 
-            if k == "geometry":
-                draw_geometry(ax, state, cache=cache, treat_immobile_as_fixed=treat_immobile_as_fixed,
-                              line_width=lw, title="Geometry", legend=False)
-            elif k == "energy":
-                draw_energy(ax, state, cache=cache, treat_immobile_as_fixed=treat_immobile_as_fixed,
-                            line_width=lw, percentile=energy_percentile, gamma=energy_gamma, title="Local Energy", add_colorbar=False)
-            elif k == "defects":
-                draw_defects(ax, state, cache=cache, defect_threshold=defect_threshold,
-                             treat_immobile_as_fixed=treat_immobile_as_fixed,
-                             line_width=lw, title=f"Defects (E≥{defect_threshold})", legend=False)
-            elif k == "class":
-                draw_class(ax, state, cache=cache, prefer="energy_class",
-                           treat_immobile_as_fixed=treat_immobile_as_fixed,
-                           line_width=lw, title="Energy Class", legend=False)
-            elif k == "growth":
-                draw_growth(ax, state, cache=cache, treat_immobile_as_fixed=treat_immobile_as_fixed,
-                            line_width=lw, title="Growth", legend=False)
-            elif k == "strain":
-                draw_strain(ax, state, cache=cache, treat_immobile_as_fixed=treat_immobile_as_fixed,
-                            line_width=lw, percentile=strain_percentile,
-                            title="Phason Strain Energy", add_colorbar=False)
-            elif k == "fft":
-                _draw_fft_panel(ax, state)
-            elif k == "vertex_dist":
-                _draw_vertex_dist_panel(ax, state)
-            elif k == "energy_hist":
-                _draw_energy_hist_panel(ax, state)
-            elif k == "energy_cdf":
-                _draw_energy_cdf_panel(ax, state)
-            elif k == "energy_quantiles":
-                _draw_energy_quantiles_panel(ax, state)
-            elif k == "strain_hist":
-                _draw_strain_hist_panel(ax, state)
-            else:
-                ax.text(0.5, 0.5, f"Unknown panel\n'{kind}'", ha="center", va="center")
+            strain_vmin = viz.get("strain_vmin", None)
+            strain_vmax = viz.get("strain_vmax", None)
+            strain_vmin = float(strain_vmin) if strain_vmin is not None else None
+            strain_vmax = float(strain_vmax) if strain_vmax is not None else None
+
+            panel_kwargs: Dict[str, Any] = dict(
+                cache=cache,
+                treat_immobile_as_fixed=treat_immobile_as_fixed,
+                line_width=lw,
+                legend=False,
+                add_colorbar=False,
+                title=None,
+            )
+
+            if k in {"energy", "energy_local", "local_energy"}:
+                panel_kwargs.update(
+                    percentile=energy_percentile,
+                    gamma=energy_gamma,
+                    vmin=energy_vmin,
+                    vmax=energy_vmax,
+                    title="Local Energy",
+                )
+
+            elif k in {"strain", "phason", "phason_energy"}:
+                panel_kwargs.update(
+                    percentile=strain_percentile,
+                    vmin=strain_vmin,
+                    vmax=strain_vmax,
+                    title="Phason Strain Energy",
+                )
+
+            elif k in {"defects", "defect"}:
+                panel_kwargs.update(
+                    defect_threshold=defect_threshold,
+                    title=f"Defects (E≥{defect_threshold})",
+                )
+
+            elif k in {"class", "energy_class"}:
+                panel_kwargs.update(
+                    prefer="energy_class",
+                    title="Energy Class",
+                )
+
+            elif k in {"growth"}:
+                panel_kwargs.update(title="Growth")
+
+            elif k in {"geometry", "geom"}:
+                panel_kwargs.update(title="Geometry")
+
+            try:
+                draw_named_panel(ax, state, k, **panel_kwargs)
+            except Exception as e:
+                ax.text(0.5, 0.5, f"Unknown panel\n'{k}'\n\n{e}", ha="center", va="center")
                 ax.axis("off")
 
         if title:
@@ -274,7 +548,7 @@ def plot_diffraction_pattern(state: Dict[str, Any], *, save_path: Optional[PathL
 
     with mpl_style(cfg):
         fig, ax = plt.subplots(figsize=(8, 6))
-        _draw_fft_panel(ax, state, add_colorbar=True)
+        draw_named_panel(ax, state, "fft", add_colorbar=True)
 
         if save_path is not None or outdir is not None:
             p = Path(save_path) if save_path is not None else resolve_output_path(cfg, outdir=outdir, filename="fft")

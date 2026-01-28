@@ -39,8 +39,8 @@ class FlipEngine:
             if tile.get("id") != idx:
                 tile["id"] = idx
             
-            if tile.get("removed", False):
-                continue
+            # if tile.get("removed", False):
+            #     continue
 
             vertices = tile["vertices"]
             for i in range(4):
@@ -56,36 +56,69 @@ class FlipEngine:
             # Case A: Removed Tile -> WIPE EVERYTHING
             if tile.get("removed", False):
                 tile["neighbors"] = []
+                tile["neighbors_full"] = []
                 adjacency_graph[str(idx)] = []
                 continue
 
             # Case B: Active Tile -> Rebuild from map
-            neighbors = set()
+            full_neighbors = set()
+            active_neighbors = set()
+
             vertices = tile["vertices"]
-            
             for i in range(4):
                 p1, p2 = vertices[i], vertices[(i + 1) % 4]
                 edge = self._normalize_edge(p1, p2)
-                
-                # Get all tiles sharing this edge
+
                 connected_indices = edge_to_tiles.get(edge, [])
-                
-                # Optional: Geometry Integrity Check (warn if >2 tiles share an edge)
+
                 if self.verbose and len(connected_indices) > 2:
                     print(f"⚠️ WARN: Edge {edge} shared by {len(connected_indices)} tiles: {connected_indices}")
 
                 for neighbor_idx in connected_indices:
-                    if neighbor_idx != idx:
-                        neighbors.add(neighbor_idx)
-            
-            # Determinism: Sort the neighbors
-            sorted_neighbors = sorted(list(neighbors))
-            
-            # Update Source of Truth (both Tile object and Graph)
+                    if neighbor_idx == idx:
+                        continue
+
+                    # neighbors_full sees everything (including removed tiles)
+                    full_neighbors.add(neighbor_idx)
+
+                    # neighbors excludes removed tiles (active-only graph)
+                    if not tiles[neighbor_idx].get("removed", False):
+                        active_neighbors.add(neighbor_idx)
+
+            # Determinism: sort both lists
+            sorted_neighbors = sorted(active_neighbors)
+            sorted_neighbors_full = sorted(full_neighbors)
+
+            # Update both fields
             tile["neighbors"] = sorted_neighbors
+            tile["neighbors_full"] = sorted_neighbors_full
+
+            # adjacency_graph remains the active-only graph
             adjacency_graph[str(idx)] = sorted_neighbors
-            
+
+
         tiling_data["adjacency_graph"] = adjacency_graph
+
+        # --- DEBUG: adjacency health check (high signal, low spam) ---
+        if getattr(self, "verbosity", 0) >= 2:
+            n_tiles = len(tiles)
+            n_keys = len(adjacency_graph)
+            n_removed = sum(1 for t in tiles if t.get("removed", False))
+        
+            if n_keys != n_tiles:
+                missing = [i for i in range(n_tiles) if str(i) not in adjacency_graph][:15]
+                print(
+                    f"[ADJ-ERR] adjacency_graph keys={n_keys}/{n_tiles} removed={n_removed} "
+                    f"missing_keys(sample)={missing}",
+                    flush=True,
+                )
+            else:
+                # Optional: only print occasionally if you want (comment this out if too chatty)
+                print(
+                    f"[ADJ-OK] adjacency_graph keys={n_keys}/{n_tiles} removed={n_removed}",
+                    flush=True,
+                )
+        
 
 
     def compute_edge_length(self, tiling_data: Dict) -> float:
@@ -174,6 +207,7 @@ class FlipEngine:
                 "local_energy": tile.get("local_energy"),
                 "phason_energy": tile.get("phason_energy"),
                 "neighbors": tile.get("neighbors", [])[:],
+                "neighbors_full": tile.get("neighbors_full", [])[:],
                 "vertices": [v[:] for v in tile["vertices"]],
                 "center": tile["center"][:],
                 "flippable": tile.get("flippable", True),
@@ -196,19 +230,32 @@ class FlipEngine:
             for key, value in state.items():
                 tile[key] = value
         
-        # Restore adjacency
-        for key, neighbors in undo_info["adjacency_graph"].items():
-            tiling_data["adjacency_graph"][key] = neighbors
+        # If the flip attempt performed a global rebuild, we MUST rebuild globally again
+        # after restoring tile geometry; otherwise we leave neighbors/graph inconsistent.
+        did_rebuild = bool(tiling_data.get("_flip_did_global_rebuild", False))
         
-        # Explicitly clear cache for these tiles to ensure consistency
-        # Clear energy-model caches for restored tiles (vertex + phason)
+        if did_rebuild:
+            # Reconstruct neighbors + adjacency from the restored geometry
+            self._rebuild_adjacency_global(tiling_data)
+        else:
+            # Lightweight restore path (used when apply_flip failed before rebuild)
+            for key, neighbors in undo_info["adjacency_graph"].items():
+                tiling_data["adjacency_graph"][key] = neighbors
+        
+        # Clear cache for a safety neighborhood (energies depend on neighbors)
         if hasattr(self.energy_model, "clear_cache"):
             self.energy_model.clear_cache(tile_ids=list(undo_info["tile_states"].keys()))
 
 
+
     def apply_flip(self, cluster_ids: List[int], tiling_data: Dict) -> bool:
         """Apply phason flip"""
-        if len(cluster_ids) != 3: return False
+        # Track whether we performed a full adjacency rebuild in this attempt
+        tiling_data["_flip_did_global_rebuild"] = False
+
+        if len(cluster_ids) != 3:
+            return False
+
         
         L = self.compute_edge_length(tiling_data)
         eps_len = self._get_tolerance(L)
@@ -277,6 +324,7 @@ class FlipEngine:
         # CRITICAL FIX: Replaced local updates with Global Rebuild
         # ---------------------------------------------------------
         self._rebuild_adjacency_global(tiling_data)
+        tiling_data["_flip_did_global_rebuild"] = True
         # ---------------------------------------------------------
         
         # CRITICAL: Recompute energy for the affected radius 3 region
