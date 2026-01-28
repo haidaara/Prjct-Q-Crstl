@@ -1,0 +1,62 @@
+{
+  "validator": "phason_validation",
+  "status": "PASS",
+  "inputs": {
+    "config": "configs/phase2_experiments.toml",
+    "tiling_path": "data/processed/penrose_tiling_energy_initialized.json",
+    "calibration_path": "configs/phason_calibration.json"
+  },
+  "settings": {
+    "tile_id": 100,
+    "samples": 200,
+    "seed": 42,
+    "topk": 10,
+    "forward_check": true,
+    "warn_reconstruction_error": 1e-10,
+    "fail_reconstruction_error": 1e-08,
+    "stiffness_K": 0.3,
+    "normalize_by_degree": true
+  },
+  "single_tile": {
+    "tile_id": 100,
+    "diagnostics": {
+      "tile_id": 100,
+      "center": [
+        2.772542485937363,
+        36.14640348708876
+      ],
+      "indices": [
+        1,
+        -14,
+        -10,
+        7,
+        14
+      ],
+      "gauge_sum": -2,
+      "target_sum": -3,
+      "gauge_ok": true,
+      "perp": [
+        -0.2930253604485742,
+        -0.721396182835925,
+        -0.4790599211481634
+      ],
+      "reconstruction_error": 5.18520508776607e-14,
+      "best_pair_key": "0,4"
+    },
+    "stored_lattice_coords": [
+      1,
+      -14,
+      -10,
+      7,
+      14
+    ],
+    "pair_key_hint": "0,4",
+    "phason_energy": 0.04322949016875268
+  },
+  "sample_summary": {
+    "reconstruction_error_mean": 6.099601156152004e-14,
+    "reconstruction_error_p95": 1.362498370675727e-13,
+    "reconstruction_error_max": 1.657256204579568e-13,
+    "gauge_ok_fraction": 1.0
+  }
+}

@@ -1,0 +1,178 @@
+{
+  "snapshots": [
+    {
+      "step": 0,
+      "label": "baseline",
+      "temperature": 0.3,
+      "file": "snapshots/snapshot_0000_baseline.json"
+    },
+    {
+      "step": 1,
+      "label": "damaged",
+      "temperature": 5.0,
+      "file": "snapshots/snapshot_0001_damaged.json"
+    },
+    {
+      "step": 50,
+      "label": "healing",
+      "temperature": 5.0,
+      "file": "snapshots/snapshot_0050_healing.json"
+    },
+    {
+      "step": 100,
+      "label": "healing",
+      "temperature": 5.0,
+      "file": "snapshots/snapshot_0100_healing.json"
+    },
+    {
+      "step": 150,
+      "label": "healing",
+      "temperature": 2.5,
+      "file": "snapshots/snapshot_0150_healing.json"
+    },
+    {
+      "step": 200,
+      "label": "healing",
+      "temperature": 2.5,
+      "file": "snapshots/snapshot_0200_healing.json"
+    },
+    {
+      "step": 250,
+      "label": "healing",
+      "temperature": 2.5,
+      "file": "snapshots/snapshot_0250_healing.json"
+    },
+    {
+      "step": 300,
+      "label": "healing",
+      "temperature": 2.5,
+      "file": "snapshots/snapshot_0300_healing.json"
+    },
+    {
+      "step": 350,
+      "label": "healing",
+      "temperature": 1.2,
+      "file": "snapshots/snapshot_0350_healing.json"
+    },
+    {
+      "step": 400,
+      "label": "healing",
+      "temperature": 1.2,
+      "file": "snapshots/snapshot_0400_healing.json"
+    },
+    {
+      "step": 450,
+      "label": "healing",
+      "temperature": 1.2,
+      "file": "snapshots/snapshot_0450_healing.json"
+    },
+    {
+      "step": 500,
+      "label": "healing",
+      "temperature": 1.2,
+      "file": "snapshots/snapshot_0500_healing.json"
+    },
+    {
+      "step": 550,
+      "label": "healing",
+      "temperature": 0.6,
+      "file": "snapshots/snapshot_0550_healing.json"
+    },
+    {
+      "step": 600,
+      "label": "healing",
+      "temperature": 0.6,
+      "file": "snapshots/snapshot_0600_healing.json"
+    },
+    {
+      "step": 650,
+      "label": "healing",
+      "temperature": 0.6,
+      "file": "snapshots/snapshot_0650_healing.json"
+    },
+    {
+      "step": 700,
+      "label": "healing",
+      "temperature": 0.6,
+      "file": "snapshots/snapshot_0700_healing.json"
+    },
+    {
+      "step": 750,
+      "label": "healing",
+      "temperature": 0.3,
+      "file": "snapshots/snapshot_0750_healing.json"
+    },
+    {
+      "step": 800,
+      "label": "healing",
+      "temperature": 0.3,
+      "file": "snapshots/snapshot_0800_healing.json"
+    },
+    {
+      "step": 850,
+      "label": "healing",
+      "temperature": 0.3,
+      "file": "snapshots/snapshot_0850_healing.json"
+    },
+    {
+      "step": 900,
+      "label": "healing",
+      "temperature": 0.3,
+      "file": "snapshots/snapshot_0900_healing.json"
+    },
+    {
+      "step": 950,
+      "label": "healing",
+      "temperature": 0.15,
+      "file": "snapshots/snapshot_0950_healing.json"
+    },
+    {
+      "step": 1000,
+      "label": "healing",
+      "temperature": 0.15,
+      "file": "snapshots/snapshot_1000_healing.json"
+    },
+    {
+      "step": 1050,
+      "label": "healing",
+      "temperature": 0.15,
+      "file": "snapshots/snapshot_1050_healing.json"
+    },
+    {
+      "step": 1100,
+      "label": "healing",
+      "temperature": 0.15,
+      "file": "snapshots/snapshot_1100_healing.json"
+    },
+    {
+      "step": 1150,
+      "label": "healing",
+      "temperature": 0.1,
+      "file": "snapshots/snapshot_1150_healing.json"
+    },
+    {
+      "step": 1200,
+      "label": "healing",
+      "temperature": 0.1,
+      "file": "snapshots/snapshot_1200_healing.json"
+    },
+    {
+      "step": 1250,
+      "label": "healing",
+      "temperature": 0.1,
+      "file": "snapshots/snapshot_1250_healing.json"
+    },
+    {
+      "step": 1300,
+      "label": "healing",
+      "temperature": 0.1,
+      "file": "snapshots/snapshot_1300_healing.json"
+    },
+    {
+      "step": 1300,
+      "label": "final",
+      "temperature": 0.1,
+      "file": "snapshots/snapshot_1300_final.json"
+    }
+  ]
+}

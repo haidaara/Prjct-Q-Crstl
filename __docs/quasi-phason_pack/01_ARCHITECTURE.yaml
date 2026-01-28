@@ -1,0 +1,109 @@
+version: 1
+scope: "Quasi-phason / Penrose P3 pipeline (minimal context pack)"
+
+pipeline_overview:
+  stage_00_generate:
+    entrypoint: scripts/experiments/01_generate_tiling.py
+    output: data/raw/penrose_tiling.json
+  stage_01_prepare_energy_landscape:
+    entrypoint: scripts/experiments/01_prepare_processed_tiling.py
+    output: data/processed/penrose_tiling_energy_initialized.json
+    logs:
+      - data/energy/energy_model_parameters.json
+      - data/energy/vertex_environment_statistics.json
+      - data/energy/energy_validation_report.json
+  stage_02_obstacles:
+    entrypoint: scripts/experiments/02_generate_obstacles.py
+    output: data/experiments/obstacles/*
+  stage_03_healing:
+    entrypoint: scripts/experiments/03_run_healing_test.py
+    output: data/experiments/healing/*
+
+interfaces:
+  # Core modules: these are the only “blessed” entry APIs.
+  - tag: "[#TILINGS-CORE]"
+    name: PenroseTiling
+    file: src/tilings/penrose_p3.py
+    provides:
+      - generate() -> tiling_state_json
+  - tag: "[#ENERGY-CALC]"
+    name: WidomInspiredEnergy
+    file: src/energy/widom_inspired_energy.py
+    provides:
+      - update_tiling_energy(tiling_state_json)  # populates per-tile energy fields
+      - compute_total_energy(tiling_state_json)
+  - tag: "[#VERTEX-CLASS]"
+    name: CombinatorialVertexClassifier
+    file: src/energy/combinatorial_classifier.py
+    provides:
+      - classify_tile(tile, tiling_state_json) -> vertex_class
+  - tag: "[#MC-ENGINE]"
+    name: MonteCarloEngine
+    file: src/simulation/mc_engine.py
+    provides:
+      - run(tiling_state_json, steps, ...) -> (state, metrics)
+  - tag: "[#FLIP-ENGINE]"
+    name: FlipEngine
+    file: src/simulation/flip_engine.py
+    provides:
+      - find_flippable_hexagons(...)
+      - apply_flip(...)
+  - tag: "[#OBSTACLES]"
+    name: ObstacleCreator
+    file: src/obstacle/obstacle_creator.py
+    provides:
+      - apply_obstacles(tiling_state_json, config) -> state
+  - tag: "[#VIZ]"
+    name: static_plots + viz utils
+    files:
+      - src/viz/static_plots.py
+      - src/viz/utils.py
+
+invariants:
+  determinism:
+    description: "When seeds + schedules are fixed, repeated runs should match within floating tolerance."
+  tile_flag_exclusion:
+    description: "A tile cannot be both removed and grown; removed tiles are treated as pores/vacuum."
+  removed_neighbors_blank:
+    description: "If tile.removed==True then tile.neighbors must be [], and it must be excluded from flip candidates."
+  id_type_policy:
+    description: "Tile IDs are integers in-memory. adjacency_graph may serialize keys as strings; loaders must normalize."
+  energy_hierarchy:
+    description: "Widom class dominates; continuous corrections are bounded and must not reorder class hierarchy."
+  pores_zero_energy:
+    description: "Removed tiles contribute zero energy by convention; do not include them in totals."
+  schema_stability:
+    description: "State JSON schema is append-only (new fields allowed; existing keys must not change semantics)."
+
+state_json_contract:
+  required_top_level_keys:
+    - tiles
+    - adjacency_graph
+    - metadata
+  adjacency_graph:
+    notes:
+      - "May come from JSON with string keys; normalize to int->list[int]."
+  tile_required_keys:
+    - id
+    - type
+    - center
+    - vertices
+    - neighbors
+  tile_physics_keys_written_by_stage_01:
+    - vertex_class
+    - local_energy
+    - flippable
+    - growth_status
+    # Option-A/topology-aware fields
+    - missing_bonds
+    - surface_energy
+    - energy_class
+
+cross_cutting_concerns:
+  config_source_of_truth:
+    file: configs/phase2_experiments.toml
+    rule: "YAML does not duplicate numeric defaults; validators read TOML."
+  caching:
+    rule: "Any cache (energy/class) must be cleared when you wipe stored fields or mutate topology."
+  io_paths:
+    rule: "Scripts should log paths relative to project root (avoid absolute /mnt/...)."

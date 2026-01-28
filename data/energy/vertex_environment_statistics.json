@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-12-27T16:23:29.771569",
+  "timestamp": "2026-01-06T18:34:24.061060",
   "tiling_reference": {
     "total_tiles": 4406,
     "active_tiles": 4406,
@@ -19,14 +19,14 @@
     "4": 4183
   },
   "energy_landscape_statistics": {
-    "total_configurational_energy": 561.9274999960477,
-    "average_energy_per_tile": 0.1275368815242959,
-    "energy_standard_deviation": 0.5259003271274596,
-    "min_energy_observed": 0.0,
-    "max_energy_observed": 5.0,
-    "energy_variance": 0.276571154072769,
-    "energy_skewness": 5.767891695164212,
-    "energy_kurtosis": 39.05475407746271
+    "total_configurational_energy": 705.1872785674103,
+    "average_energy_per_tile": 0.16005158387821386,
+    "energy_standard_deviation": 0.5260296443680601,
+    "min_energy_observed": 0.02072949016875096,
+    "max_energy_observed": 5.041458980337505,
+    "energy_variance": 0.2767071867539878,
+    "energy_skewness": 5.753644060464891,
+    "energy_kurtosis": 38.86595352638658
   },
   "coordination_quality_metrics": {
     "has_isolated_tiles": false,
@@ -69,7 +69,7 @@
   "energy_landscape_quality": {
     "percentage_low_energy": 97.88924194280526,
     "percentage_low_energy_class": 94.93871992737176,
-    "energy_landscape_ruggedness": 4.123515651612914,
+    "energy_landscape_ruggedness": 3.2866256716649485,
     "energy_range_adequacy": "GOOD",
     "surface_tension_active": true
   }

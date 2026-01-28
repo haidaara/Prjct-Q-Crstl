@@ -49,6 +49,11 @@ def main():
     if base_tiling is None:
         return
     
+    # Tag true window boundary once (before any removals)
+    for t in base_tiling["tiles"]:
+        t.setdefault("is_outer_edge", t.get("boundary_kind") == "outer_edge")
+
+
     # Initialize components
     obstacle_creator = ObstacleCreator(config)
     obstacle_config = ObstacleConfig(config)
@@ -96,10 +101,7 @@ def load_base_tiling():
             return tiling_data
 
     print("❌ Error: Missing base tiling.")
-    print("   Expected one of:")
-    for path in candidates:
-        print(f"   - {path}")
-    print("   Run: python experiments/01_generate_tiling.py")
+    raise FileNotFoundError("Processed tiling missing. Run 01_prepare_processed_tiling.py first.")
     return None
 
 
@@ -125,6 +127,23 @@ def create_obstacle_configurations(obstacle_creator, visualizer, base_tiling, ob
         
         # Create obstacles
         obstacle_tiling = obstacle_creator.create_obstacles(base_tiling, obstacle_spec)
+
+        # ✅ Physics fix: recompute topology-dependent energy fields after removal
+        from src.energy.widom_inspired_energy import WidomInspiredEnergy
+        energy_model = WidomInspiredEnergy.from_config(obstacle_creator.config)
+        energy_model.update_tiling_energy(obstacle_tiling)
+
+        # # --- Keep decomposition fields consistent with updated local_energy ---
+        # w = energy_model.params.matching_rule_weight
+        # for t in obstacle_tiling["tiles"]:
+        #     if t.get("removed", False) or t.get("obstacle_type") == "pore":
+        #         t["surface_contribution"] = 0.0
+        #         t["bulk_energy"] = 0.0
+        #         continue
+        #     sc = w * float(t.get("surface_energy", 0.0))
+        #     t["surface_contribution"] = sc
+        #     t["bulk_energy"] = float(t["local_energy"]) - sc
+
         
         # Ensure adjacency keys are strings (JSON safe)
         if "adjacency_graph" in obstacle_tiling:

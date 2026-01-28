@@ -7,6 +7,8 @@ FIXED: Better coordination validation and energy statistics
 import json
 import datetime
 import os
+import hashlib
+
 import numpy as np
 from typing import Dict, Any, List
 from collections import Counter
@@ -52,8 +54,11 @@ class EnergyLogger:
                 "treat_ungrown_as_vacuum": energy_model.params.treat_ungrown_as_vacuum
             },
 
-            # NEW: Physics Semantics Documentation
-            "semantic_clarification": {
+        # Phason strain (Option A-lite)
+        "phason_parameters": self._phason_parameters_digest(energy_model),
+
+        # NEW: Physics Semantics Documentation
+        "semantic_clarification": {
                 "vertex_class": "Geometric classification (pure Widom)",
                 "energy_class": "Physics outcome (geometry + surface + strain)",
                 "boundary_kind": "Type of boundary interface",
@@ -200,7 +205,15 @@ class EnergyLogger:
             ) else "POOR"
         }
             
-    def log_energy_validation_report(self, validation_results: Dict, computation_time: float) -> str:
+    def log_energy_validation_report(
+        self,
+        validation_results: Dict,
+        computation_time: float,
+        *,
+        energy_model=None,
+        tiling_data: Dict | None = None
+    ) -> str:
+
         """Log validation and performance metrics for energy calculations"""
         sr = validation_results.get("simulation_readiness", {})
         ready_for_healing = sr.get("ready_for_healing", sr.get("monte_carlo_ready", False))
@@ -230,6 +243,10 @@ class EnergyLogger:
                     "surface_energy": validation_results.get("has_surface_energy", False)
                 }
             },
+            
+            # Phason (lightweight logger; deep validation remains in validate_phason_strain.py)
+            "phason_summary": self._phason_summary_for_report(energy_model, tiling_data),
+
 
             "overall_assessment": {
                 "physics_correctness": "OptionA_Implemented" if validation_results.get("surface_tension_active", False) else "WidomOnly",
@@ -352,3 +369,97 @@ class EnergyLogger:
 
         filepath = self._save_json("energy/boundary_analysis.json", analysis)
         return filepath
+
+
+    def _phason_parameters_digest(self, energy_model) -> Dict[str, Any]:
+        """Small, high-signal phason config + calibration digest (no heavy computation)."""
+        params = getattr(energy_model, "params", None)
+        if params is None:
+            return {"enabled": False, "note": "energy_model has no params"}
+
+        out: Dict[str, Any] = {
+            "enabled": bool(getattr(params, "phason_enabled", False)),
+            "stiffness_K": float(getattr(params, "phason_stiffness", 0.0)),
+            "weight": float(getattr(params, "phason_weight", 0.0)),
+            "normalize_by_degree": bool(getattr(params, "phason_degree_normalize", True)),
+            "cache_max": int(getattr(params, "phason_cache_max", 0)),
+            "calibration_file": getattr(params, "phason_calibration_file", None),
+        }
+
+        calib_path = out["calibration_file"]
+        if not calib_path or not os.path.exists(calib_path):
+            out["calibration_loaded"] = False
+            return out
+
+        try:
+            raw = open(calib_path, "rb").read()
+            sha = hashlib.sha256(raw).hexdigest()[:12]
+            cal = json.loads(raw.decode("utf-8"))
+        except Exception as e:
+            out["calibration_loaded"] = False
+            out["calibration_error"] = str(e)
+            return out
+
+        out["calibration_loaded"] = True
+        out["calibration_sha256_12"] = sha
+        out["calibration_digest"] = {
+            "target_sum": cal.get("target_sum"),
+            "allowed_sums": cal.get("allowed_sums"),
+            "gauge_sum_distribution": cal.get("gauge_sum_distribution"),
+            "reconstruction_error_mean_per_tile": cal.get("reconstruction_error_mean_per_tile"),
+            "reconstruction_error_max_per_tile": cal.get("reconstruction_error_max_per_tile"),
+            "pair_offsets_count": len(cal.get("pair_offsets", {}) or {}),
+        }
+
+        gsd = cal.get("gauge_sum_distribution")
+        if isinstance(gsd, dict) and len(gsd) > 1:
+            out["note"] = "multiple gauge sums present; lifting must allow more than one sum"
+
+        return out
+
+
+    def _phason_summary_for_report(self, energy_model, tiling_data: Dict | None) -> Dict[str, Any]:
+        """Lightweight phason section for energy_validation_report.json."""
+        if energy_model is None:
+            return {"present": False, "note": "energy_model not provided to logger"}
+
+        meta = self._phason_parameters_digest(energy_model)
+        enabled = bool(meta.get("enabled", False))
+
+        # If phason is disabled, still keep metadata + calibration digest.
+        if not enabled:
+            return {"present": True, "enabled": False, "metadata": meta}
+
+        # If enabled but no tiling provided, we can’t summarize runtime energies.
+        if tiling_data is None:
+            return {"present": True, "enabled": True, "metadata": meta, "note": "tiling_data not provided"}
+
+        # Runtime phason energy stats (cheap): rely on fields written by update_tiling_energy().
+        active_tiles = [
+            t for t in tiling_data.get("tiles", [])
+            if (not t.get("removed", False))
+            and (t.get("obstacle_type") != "pore")
+            and (t.get("growth_status") != "ungrown")
+        ]
+        ph_vals = [float(t.get("phason_energy", 0.0)) for t in active_tiles if "phason_energy" in t]
+        if not ph_vals:
+            return {
+                "present": True,
+                "enabled": True,
+                "metadata": meta,
+                "note": "no per-tile phason_energy fields found (did you enable phason before update_tiling_energy?)",
+            }
+
+        ph_vals = np.asarray(ph_vals, dtype=float)
+        return {
+            "present": True,
+            "enabled": True,
+            "metadata": meta,
+            "runtime_phason_energy": {
+                "count": int(ph_vals.size),
+                "mean": float(ph_vals.mean()),
+                "max": float(ph_vals.max()),
+                "std": float(ph_vals.std()),
+                "fraction_nonzero": float(np.mean(ph_vals > 0.0)),
+            },
+        }

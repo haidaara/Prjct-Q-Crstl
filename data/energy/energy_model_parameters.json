@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-12-27T16:23:29.771569",
+  "timestamp": "2026-01-06T18:34:24.061060",
   "energy_model": "WidomInspiredQuasicrystalHamiltonian",
   "version": "OptionA_WithSurfaceTension",
   "vertex_energy_hierarchy": {
@@ -23,6 +23,28 @@
       1.5
     ],
     "treat_ungrown_as_vacuum": false
+  },
+  "phason_parameters": {
+    "enabled": true,
+    "stiffness_K": 0.3,
+    "weight": 0.5,
+    "normalize_by_degree": true,
+    "cache_max": 200000,
+    "calibration_file": "configs/phason_calibration.json",
+    "calibration_loaded": true,
+    "calibration_sha256_12": "ecc08a2099ea",
+    "calibration_digest": {
+      "target_sum": -3,
+      "allowed_sums": null,
+      "gauge_sum_distribution": {
+        "-3": 2226,
+        "-2": 2180
+      },
+      "reconstruction_error_mean_per_tile": 6.93658274398029e-14,
+      "reconstruction_error_max_per_tile": 2.0664910141732583e-13,
+      "pair_offsets_count": 10
+    },
+    "note": "multiple gauge sums present; lifting must allow more than one sum"
   },
   "semantic_clarification": {
     "vertex_class": "Geometric classification (pure Widom)",

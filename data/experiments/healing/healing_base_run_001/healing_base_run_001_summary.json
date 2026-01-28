@@ -4,7 +4,7 @@
     "scenario": "base",
     "input_tiling": "data/processed/penrose_tiling_energy_initialized.json",
     "output_dir": "data/experiments/healing/healing_base_run_001",
-    "timestamp": "2025-12-26T20:39:18",
+    "timestamp": "2026-01-02T23:54:27",
     "obstacle_density": 0.0,
     "temperature": 0.1,
     "steps": 3000
@@ -12,7 +12,7 @@
   "config": {
     "seed_radius": 10.0,
     "num_defects": 15,
-    "defect_threshold": 1.0,
+    "defect_threshold": 1.5,
     "monte_carlo": {
       "temperature": 0.1,
       "steps": 3000,
@@ -23,12 +23,12 @@
     "verbosity": 2
   },
   "results": {
-    "defects_start": 94,
+    "defects_start": 1,
     "defects_end": 0,
     "efficiency": 1.0,
-    "accepted": 1947,
-    "acceptance_rate": 0.649,
-    "max_drift": 1.3073986337985843e-12,
-    "runtime_s": 705.4288988113403
+    "accepted": 2000,
+    "acceptance_rate": 0.6666666666666666,
+    "max_drift": 2.3874235921539366e-12,
+    "runtime_s": 971.370278596878
   }
 }

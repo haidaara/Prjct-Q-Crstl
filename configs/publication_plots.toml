@@ -1,27 +1,97 @@
 # configs/publication_plots.toml
-# =====================================================================
-# 📊 PUBLICATION / ANALYSIS CONFIG
-# Only aesthetics + analysis settings (never physics).
-# =====================================================================
+# Visualization configuration for Quasi-Phason project
 
 [publication]
-format = "pdf"                         # Output format for final figures
-dpi = 600                              # Publication DPI (for png; pdf ignores dpi mostly)
-transparent_background = false         # True for overlays in LaTeX
-tight_layout = true                    # Reduce whitespace/margins
+format = "png"
+dpi = 200
+transparent_background = false
+tight_layout = true
 
 [fonts]
-family = "DejaVu Sans"                 # Font family (safe default on most systems)
-base_size = 10                         # Base font size
-title_size = 12                        # Title font size
-label_size = 10                        # Axis label font size
+family = "DejaVu Sans"
+base_size = 10
+title_size = 12
+label_size = 10
 
 [lines]
-line_width = 1.2                       # Line thickness for curves
-marker_size = 4                        # Marker size for scatter points
+line_width = 1.2
+marker_size = 4
 
 [figure]
-default_figsize = [6.5, 4.0]           # Default figure size in inches [W, H]
+default_figsize = [6.5, 4.0]
+matrix_figsize = [18, 18]
+grid_figsize = [22, 14]
 
 [paths]
-output_dir = "data/publication/plots"  # Where publication plots are written
+output_dir = "data/publication/plots"
+
+[viz_jobs]
+enabled = true
+
+# Default parameters
+defect_threshold = 1.5
+energy_percentile = [5, 95]
+strain_percentile = [5, 95]
+treat_immobile_as_fixed = false
+
+# IMPORTANT PLOTS - Individual toggles
+[viz_jobs.plots_enabled]
+matrix_2x2 = true
+grid_3x3 = true
+diffraction = true
+vertex_dist = true
+radial_defects = true
+strain_map = true
+strain_hist = true
+strain_vs_distance = true
+pair = true
+triptych = true
+change_panel = true
+phason_drift_series = true
+strain_series = true
+strain_vs_defects = true
+defect_density_by_distance = true
+storyboard = true
+movie = true
+
+# GROUP TOGGLES - Less critical plot groups
+[viz_jobs.groups_enabled]
+dashboards = true
+healing_plots = true
+individual_panels = true
+
+# ===== EXAMPLE JOBS =====
+
+[[viz_jobs.jobs]]
+kind = "state"
+input = "data/processed/penrose_tiling_energy_initialized.json"
+outdir = "data/viz/"
+
+[[viz_jobs.jobs]]
+kind = "compare"
+baseline = "data/baseline.json"
+damaged = "data/damaged.json"
+healed = "data/healed.json"
+view = "energy"
+outdir = "data/viz/compare"
+
+[[viz_jobs.jobs]]
+kind = "movie"
+snapshot_dir = "data/experiments/obstacle_healing/run_001/snapshots"
+view = "strain"
+fps = 12
+outdir = "data/viz/movies"
+
+[[viz_jobs.jobs]]
+kind = "storyboard"
+snapshot_dir = "data/experiments/obstacle_healing/run_001/snapshots"
+view = "energy"
+n_frames = 12
+ncols = 4
+outdir = "data/viz/storyboards"
+
+[[viz_jobs.jobs]]
+kind = "spatial"
+input = "data/experiments/obstacle_healing/run_001/snapshots/snapshot_0001_damaged.json"
+bin_edges = [0, 2, 4, 6, 8, 10]
+outdir = "data/viz/spatial"

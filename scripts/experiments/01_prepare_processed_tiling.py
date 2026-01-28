@@ -137,7 +137,12 @@ def main():
     # Log energy-specific concepts
     params_file = energy_logger.log_energy_parameters(energy_model)
     stats_file = energy_logger.log_vertex_environment_statistics(tiling)
-    validation_file = energy_logger.log_energy_validation_report(validation_results, computation_time)
+    validation_file = energy_logger.log_energy_validation_report(
+        validation_results,
+        computation_time,
+        energy_model=energy_model,
+        tiling_data=tiling,
+    )
     
     # --- Physics clarity: separate bulk energy from surface contribution ---
     mrw = float(getattr(energy_model.params, "matching_rule_weight", 1.0))
@@ -151,10 +156,11 @@ def main():
         le = float(t.get("local_energy", 0.0))
         se = float(t.get("surface_energy", 0.0))  # unweighted
         t["surface_contribution"] = mrw * se
-        t["bulk_energy"] = max(0.0, le - t["surface_contribution"])
+        t["bulk_energy"] = le - t["surface_contribution"]
 
 
-
+    for t in tiling["tiles"]:
+        t.setdefault("immobile", False)
 
     tiling_file = energy_logger.save_energy_initialized_tiling(tiling)
     

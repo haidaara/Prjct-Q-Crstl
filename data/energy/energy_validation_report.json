@@ -1,8 +1,8 @@
 {
-  "timestamp": "2025-12-27T16:23:29.771569",
+  "timestamp": "2026-01-06T18:34:24.061060",
   "energy_computation_performance": {
-    "total_computation_time_seconds": 0.8159384727478027,
-    "tiles_processed_per_second": 5399.916963300056,
+    "total_computation_time_seconds": 3.958650827407837,
+    "tiles_processed_per_second": 1113.0054637541982,
     "computation_complexity": "O(n)",
     "memory_efficiency": "HIGH"
   },
@@ -38,6 +38,39 @@
       "boundary_kind": true,
       "missing_bonds": true,
       "surface_energy": true
+    }
+  },
+  "phason_summary": {
+    "present": true,
+    "enabled": true,
+    "metadata": {
+      "enabled": true,
+      "stiffness_K": 0.3,
+      "weight": 0.5,
+      "normalize_by_degree": true,
+      "cache_max": 200000,
+      "calibration_file": "configs/phason_calibration.json",
+      "calibration_loaded": true,
+      "calibration_sha256_12": "ecc08a2099ea",
+      "calibration_digest": {
+        "target_sum": -3,
+        "allowed_sums": null,
+        "gauge_sum_distribution": {
+          "-3": 2226,
+          "-2": 2180
+        },
+        "reconstruction_error_mean_per_tile": 6.93658274398029e-14,
+        "reconstruction_error_max_per_tile": 2.0664910141732583e-13,
+        "pair_offsets_count": 10
+      },
+      "note": "multiple gauge sums present; lifting must allow more than one sum"
+    },
+    "runtime_phason_energy": {
+      "count": 4406,
+      "mean": 0.06502940470783597,
+      "max": 0.150000000000004,
+      "std": 0.028659127754171135,
+      "fraction_nonzero": 0.9972764412165229
     }
   },
   "overall_assessment": {

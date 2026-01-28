@@ -68,6 +68,50 @@ continuous_correction_weight = 0.5
 energy_class_thresholds = [0.5, 1.5]
 
 
+# --- phason (Option A-lite) ---
+phason_enabled = true
+phason_calibration_file = "configs/phason_calibration.json"
+phason_stiffness = 0.3
+phason_weight = 0.5
+phason_degree_normalize = true
+phason_cache_max = 200000
+
+[phason_calibration]
+input_tiling = "data/processed/penrose_tiling_energy_initialized.json"
+output_file = "configs/phason_calibration.json"
+exclude_boundary = false
+
+
+# ---------------------------------------------------------------------
+# PHASON VALIDATION (scripts/validation/validate_phason_strain.py)
+# ---------------------------------------------------------------------
+[phason_validation]
+# inputs
+tiling_path = "data/processed/penrose_tiling_energy_initialized.json"
+calibration_file = "configs/phason_calibration.json"
+
+# what to probe
+tile_id = 100
+samples = 200
+rng_seed = 42
+
+# console output
+print_top_k_worst = 10
+forward_check = true
+
+# thresholds for reconstruction_error (lift diagnostic)
+warn_reconstruction_error = 1e-10
+fail_reconstruction_error = 1e-8
+
+# optional report (set to "" to disable)
+report_file = "data/energy/phason_validation_report.json"
+
+# (optional) used only for reporting phason_energy(tile=...)
+# if omitted, falls back to [energy].phason_stiffness
+stiffness = 0.3
+
+
+
 # ---------------------------------------------------------------------
 # 5) MONTE CARLO DYNAMICS (03 uses steps/R; 04 uses temperature/base_steps)
 # ---------------------------------------------------------------------
@@ -105,7 +149,7 @@ trace_every = 50                       # Verbosity=2: print MC trace every N MC 
 types = ["pores", "fixed_defects"]     # Obstacle families generator can produce
 placement = "multiple_scalable"        # Placement algorithm name (must match code)
 
-density_sweep = [0.005, 0.01, 0.02, 0.03, 0.05, 0.1]  # Densities to generate in 02
+density_sweep = [0.05, 0.1]      # Densities to generate in 02
 min_radius = 2.0                       # Minimum obstacle radius
 max_radius = 8.0                       # Maximum obstacle radius
 defect_cluster_size = 1                # Fixed_defect cluster size (1 = single-tile)

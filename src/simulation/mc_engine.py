@@ -87,6 +87,8 @@ class MonteCarloEngine:
             tile = tiling_data["tiles"][tile_id]
             tile.pop("local_energy", None)
             tile.pop("vertex_class", None)
+            tile.pop("phason_energy", None)
+
 
         clear_all_caches(self.energy_model)
 
@@ -189,6 +191,26 @@ class MonteCarloEngine:
             self.metrics["flip_stats"]["rejected"] += 1
             self.metrics["computation_times"].append(time.time() - step_start)
             return False, 0.0
+
+        # HARD OBSTACLE CONSTRAINT: no non-removed tile center may enter a pore disk
+        meta = tiling_data.get("obstacle_metadata") or {}
+        if meta.get("type") == "pores":
+            positions = meta.get("positions") or []
+            radii = meta.get("radii") or []
+            tol = 1e-6  # strict barrier (only allow boundary contact)
+            for tid in delta_region:  # delta_region is safest: all tiles whose geometry/energy may change
+                t = tiling_data["tiles"][tid]
+                if t.get("removed", False) or t.get("immobile", False):
+                    continue
+                cx, cy = t.get("center", (0.0, 0.0))
+                for (px, py), R in zip(positions, radii):
+                    if (cx - px) ** 2 + (cy - py) ** 2 < (float(R) - tol) ** 2:
+                        # invalid move -> reject and restore
+                        self.flip_engine.restore_state(undo_info, tiling_data)
+                        self.metrics["flip_stats"]["rejected"] += 1
+                        self.metrics["computation_times"].append(time.time() - step_start)
+                        return False, 0.0
+
 
         # 6. Compute Energy AFTER (Sum over Delta Region)
         if do_detail:
