@@ -1,7 +1,7 @@
 # src/energy/energy_logger.py
 """
-Research-grade energy landscape logging - ENHANCED VERSION
-FIXED: Better coordination validation and energy statistics
+energy landscape logging
+Better coordination validation and energy statistics
 """
 
 import json
@@ -14,7 +14,7 @@ from typing import Dict, Any, List
 from collections import Counter
 
 class EnergyLogger:
-    """Logs energy landscape concepts for research reproducibility"""
+    """Logs energy landscape concepts for research"""
     
     def __init__(self, base_data_dir: str = "data"):
         self.base_data_dir = base_data_dir
@@ -41,23 +41,23 @@ class EnergyLogger:
                 "phason_strain_penalty": 0.0
             },
 
-            # NEW: Surface Tension Parameters (Option A)
+            # Surface Tension Parameters (Option A)
             "surface_tension_parameters": {
                 "surface_tension_per_bond": energy_model.params.surface_tension_per_bond,
                 "matching_rule_weight": energy_model.params.matching_rule_weight,
                 "continuous_correction_weight": energy_model.params.continuous_correction_weight
             },
 
-            # NEW: Classification Thresholds
+            # Classification Thresholds
             "classification_thresholds": {
                 "energy_class_thresholds": list(energy_model.params.energy_class_thresholds),
                 "treat_ungrown_as_vacuum": energy_model.params.treat_ungrown_as_vacuum
             },
 
-        # Phason strain (Option A-lite)
+        # Phason strain parameters
         "phason_parameters": self._phason_parameters_digest(energy_model),
 
-        # NEW: Physics Semantics Documentation
+        # Physics Semantics Documentation
         "semantic_clarification": {
                 "vertex_class": "Geometric classification (pure Widom)",
                 "energy_class": "Physics outcome (geometry + surface + strain)",
@@ -85,7 +85,7 @@ class EnergyLogger:
         vertex_classes = [tile.get("vertex_class", "UNCLASSIFIED") for tile in active_tiles]
         energies = [tile.get("local_energy", 0.0) for tile in active_tiles]
         
-        # NEW: Collect Option A specific distributions
+        # Collect phason strain specific distributions
         energy_classes = [tile.get("energy_class", "UNCLASSIFIED") for tile in active_tiles]
         boundary_kinds = [tile.get("boundary_kind", "unknown") for tile in active_tiles]
         is_boundary_flags = [tile.get("is_boundary", False) for tile in active_tiles]
@@ -106,7 +106,7 @@ class EnergyLogger:
             "energy_landscape_statistics": self._calculate_energy_statistics(energies),
             "coordination_quality_metrics": self._assess_coordination_quality(coordination_numbers),
             
-            # NEW: Option A Specific Metrics
+            # Phason strain specific metrics
             "option_a_statistics": {
                 "energy_class_distribution": dict(Counter(energy_classes)),
                 "boundary_kind_distribution": dict(Counter(boundary_kinds)),
@@ -140,7 +140,7 @@ class EnergyLogger:
         for tile in tiling_data["tiles"]:
             tile_id = tile["id"]
             
-            # FIXED: Handle both integer and string keys
+            # Handle both integer and string keys
             if tile_id in adjacency_graph:
                 neighbors = adjacency_graph[tile_id]
             elif str(tile_id) in adjacency_graph:
@@ -152,7 +152,7 @@ class EnergyLogger:
         
         # Validate the coordination data
         if not self._validate_coordination_data(coordination_numbers):
-            print("⚠️  Coordination data validation failed - using fallback")
+            print("  Coordination data validation failed - using fallback")
             # Fallback: use tile neighbor lists
             coordination_numbers = [len(tile.get("neighbors", [])) for tile in tiling_data["tiles"]]
         
@@ -169,15 +169,15 @@ class EnergyLogger:
         
         # Basic sanity checks for Penrose tilings
         if zero_count > len(coordination_numbers) * 0.01:  # More than 1% isolated tiles
-            print(f"⚠️  Suspicious: {zero_count} isolated tiles detected")
+            print(f"    Suspicious: {zero_count} isolated tiles detected")
             return False
             
         if max_coord > 10:  # Physically impossible coordination for Penrose
-            print(f"⚠️  Suspicious: max coordination {max_coord} too high")
+            print(f"    Suspicious: max coordination {max_coord} too high")
             return False
             
         if avg_coord < 2.0 or avg_coord > 5.0:  # Expected range for Penrose
-            print(f"⚠️  Suspicious: average coordination {avg_coord:.2f} outside expected range")
+            print(f"    Suspicious: average coordination {avg_coord:.2f} outside expected range")
             return False
             
         return True
@@ -231,7 +231,7 @@ class EnergyLogger:
             "coordination_validation": validation_results.get("coordination_validation", {}),
             "simulation_readiness": validation_results.get("simulation_readiness", {}),
 
-            # NEW: Option A Specific Validation
+            # phason strain Specific Validation
             "option_a_validation": {
                 "surface_tension_active": validation_results.get("surface_tension_active", False),
                 "boundary_tiles_detected": validation_results.get("boundary_tiles_detected", 0),
@@ -315,7 +315,7 @@ class EnergyLogger:
     
     def log_boundary_analysis(self, tiling_data: Dict) -> str:
         """
-        Detailed boundary analysis for Option A implementation
+        Detailed boundary analysis for phason strain implementation
         """
         active_tiles = [t for t in tiling_data["tiles"] if not t.get("removed", False)]
 

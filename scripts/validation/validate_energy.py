@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
-VALIDATION 3: ENERGY & PHYSICS ENGINE (Phase 1)
+ENERGY & PHYSICS ENGINE (Phase 2) VALIDATION SCRIPT
 Checks:
 1) Determinism (fresh model + deep copies)
 2) Energy convention (total vs sum of locals)
 3) MC drift (internal + ground-truth recompute with fresh model)
 
-This is a GO/NO-GO gate before running experiments.
 """
 import sys
 import copy
@@ -21,7 +20,7 @@ from src.simulation.mc_engine import MonteCarloEngine
 
 
 def check_determinism(tiling_data) -> bool:
-    print("\n1) 🔄 Determinism")
+    print("\n1) Determinism")
     t1 = copy.deepcopy(tiling_data)
     _, m1, _ = setup_simulation_components()
     e1 = compute_total_energy_fresh(m1, t1)
@@ -32,28 +31,28 @@ def check_determinism(tiling_data) -> bool:
 
     drift = abs(e1 - e2)
     if drift < 1e-9:
-        print(f"   ✅ PASS: deterministic (E={e1:.6f})")
+        print(f"   PASS: deterministic (E={e1:.6f})")
         return True
-    print(f"   ❌ FAIL: non-deterministic (|Δ|={drift:.9f})")
+    print(f"   FAIL: non-deterministic (|Δ|={drift:.9f})")
     return False
 
 
 def check_convention(tiling_data) -> bool:
-    print("\n2) ⚖️  Convention (Total vs Sum(Local))")
+    print("\n2) Convention (Total vs Sum(Local))")
     t = copy.deepcopy(tiling_data)
     _, m, _ = setup_simulation_components()
     res = verify_energy_convention(m, t)
 
     diff = res.get("diff_sum", float("inf"))
     if diff < 1e-6:
-        print("   ✅ PASS: convention consistent")
+        print("   PASS: convention consistent")
         return True
-    print(f"   ❌ FAIL: convention mismatch (diff_sum={diff:.6f})")
+    print(f"   FAIL: convention mismatch (diff_sum={diff:.6f})")
     return False
 
 
 def check_mc_drift(tiling_data, steps: int = 100) -> bool:
-    print("\n3) 🌊 MC drift (internal + ground truth)")
+    print("\n3) MC drift (internal + ground truth)")
     t = copy.deepcopy(tiling_data)
     _, energy_model, flip_engine = setup_simulation_components()
 
@@ -82,20 +81,20 @@ def check_mc_drift(tiling_data, steps: int = 100) -> bool:
     print(f"   True final drift:      {final_drift:.6f}")
 
     if final_drift < 1e-3:
-        print("   ✅ PASS: drift contained")
+        print("   PASS: drift contained")
         return True
-    print("   ❌ FAIL: drift detected")
+    print("   FAIL: drift detected")
     return False
 
 
 if __name__ == "__main__":
-    print("⚡ ENERGY ENGINE VALIDATOR")
+    print("ENERGY ENGINE VALIDATOR")
     print("=" * 60)
 
     tiling = load_tiling()
     checks = [check_determinism(tiling), check_convention(tiling), check_mc_drift(tiling, steps=100)]
     if all(checks):
-        print("\n🎉 ALL PHYSICS CHECKS PASSED.")
+        print("\nALL PHYSICS CHECKS PASSED.")
         sys.exit(0)
-    print("\n⚠️  PHYSICS CHECKS FAILED.")
+    print("\nPHYSICS CHECKS FAILED.")
     sys.exit(1)

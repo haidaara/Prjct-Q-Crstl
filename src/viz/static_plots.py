@@ -535,7 +535,7 @@ def plot_publication_grid_3x3(
 
         if save_path is not None or outdir is not None:
             saved = save_figure(fig, p, cfg)
-            print(f"   📊 Saved 3x3 grid: {short_path(saved)}")
+            print(f"      Saved 3x3 grid: {short_path(saved)}")
 
     return fig
 
@@ -553,7 +553,7 @@ def plot_diffraction_pattern(state: Dict[str, Any], *, save_path: Optional[PathL
         if save_path is not None or outdir is not None:
             p = Path(save_path) if save_path is not None else resolve_output_path(cfg, outdir=outdir, filename="fft")
             saved = save_figure(fig, p, cfg)
-            print(f"   📊 Saved FFT: {short_path(saved)}")
+            print(f"      Saved FFT: {short_path(saved)}")
 
     return fig
 
@@ -594,7 +594,7 @@ def plot_vertex_distribution(state: Dict[str, Any], *, save_path: Optional[PathL
         if save_path is not None or outdir is not None:
             p = Path(save_path) if save_path is not None else resolve_output_path(cfg, outdir=outdir, filename="vertex_distribution")
             saved = save_figure(fig, p, cfg)
-            print(f"   📊 Saved vertex distribution: {short_path(saved)}")
+            print(f"      Saved vertex distribution: {short_path(saved)}")
 
     return fig
 
@@ -671,7 +671,7 @@ def plot_radial_defect_density(
         if save_path is not None or outdir is not None:
             p = Path(save_path) if save_path is not None else resolve_output_path(cfg, outdir=outdir, filename="radial_defect_density")
             saved = save_figure(fig, p, cfg)
-            print(f"   📊 Saved radial defect density: {short_path(saved)}")
+            print(f"      Saved radial defect density: {short_path(saved)}")
 
     return fig
 

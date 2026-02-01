@@ -105,11 +105,11 @@ def compute_total_energy_fresh(energy_model, tiling_data: Dict) -> float:
     clear_all_caches(energy_model)
     return energy_model.compute_total_energy(tiling_data)
 
-# src/utils/energy_utils.py - FIXED verify_energy_convention
+# src/utils/energy_utils.py - fixed verify_energy_convention
 def verify_energy_convention(energy_model, tiling_data: Dict) -> Dict:
     """
     Verify energy counting convention and return which one is correct
-    FIXED: Proper wiping to avoid contamination
+    Proper wiping to avoid contamination
     """
     # Compute total energy fresh
     wipe_all_energy_fields(tiling_data)

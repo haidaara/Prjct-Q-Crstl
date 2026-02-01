@@ -14,7 +14,7 @@ from src.utils.script_utils import load_tiling, setup_simulation_components, ini
 
 
 def main(seed_radius: float = 10.0) -> int:
-    print("🔎 DIAGNOSE ACTIVE REGION FLIPS")
+    print(" DIAGNOSE ACTIVE REGION FLIPS")
     print("=" * 60)
 
     tiling = load_tiling()
@@ -43,13 +43,13 @@ def main(seed_radius: float = 10.0) -> int:
     print(f"Flippable hexagons (active): {len(active_hex)}")
 
     if len(active_hex) == 0:
-        print("\n🚨 CRITICAL: 0 flippable hexagons in active region → MC cannot move.")
+        print("\n     CRITICAL: 0 flippable hexagons in active region → MC cannot move.")
         return 1
     if len(active_hex) < 10:
-        print("\n⚠️  WARNING: very few flippable hexagons in active region → MC will be slow.")
+        print("\n    WARNING: very few flippable hexagons in active region → MC will be slow.")
         return 1
 
-    print("\n✅ Active region has sufficient moves.")
+    print("\n    Active region has sufficient moves.")
     return 0
 
 

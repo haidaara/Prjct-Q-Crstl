@@ -76,7 +76,7 @@ def plot_energy_evolution(data: Dict[str, Any], *, save_path: Optional[PathLike]
         if save_path is not None or outdir is not None:
             p = Path(save_path) if save_path is not None else resolve_output_path(cfg, outdir=outdir, filename="energy_evolution")
             saved = save_figure(fig, p, cfg)
-            print(f"   📊 Saved energy evolution: {short_path(saved)}")
+            print(f"      Saved energy evolution: {short_path(saved)}")
 
     return fig
 
@@ -109,7 +109,7 @@ def plot_defect_timeline(data: Dict[str, Any], *, save_path: Optional[PathLike] 
         if save_path is not None or outdir is not None:
             p = Path(save_path) if save_path is not None else resolve_output_path(cfg, outdir=outdir, filename="defect_timeline")
             saved = save_figure(fig, p, cfg)
-            print(f"   📊 Saved defect timeline: {short_path(saved)}")
+            print(f"      Saved defect timeline: {short_path(saved)}")
 
     return fig
 
@@ -157,7 +157,7 @@ def plot_acceptance_rate(data: Dict[str, Any], *, save_path: Optional[PathLike] 
         if save_path is not None or outdir is not None:
             p = Path(save_path) if save_path is not None else resolve_output_path(cfg, outdir=outdir, filename="acceptance_rate")
             saved = save_figure(fig, p, cfg)
-            print(f"   📊 Saved acceptance rate: {short_path(saved)}")
+            print(f"      Saved acceptance rate: {short_path(saved)}")
 
     return fig
 
@@ -195,7 +195,7 @@ def plot_healing_efficiency(data: Dict[str, Any], *, save_path: Optional[PathLik
         if save_path is not None or outdir is not None:
             p = Path(save_path) if save_path is not None else resolve_output_path(cfg, outdir=outdir, filename="healing_efficiency")
             saved = save_figure(fig, p, cfg)
-            print(f"   📊 Saved healing efficiency: {short_path(saved)}")
+            print(f"      Saved healing efficiency: {short_path(saved)}")
 
     return fig
 
@@ -252,6 +252,6 @@ def plot_annealing_hysteresis(data: Dict[str, Any], *, save_path: Optional[PathL
         if save_path is not None or outdir is not None:
             p = Path(save_path) if save_path is not None else resolve_output_path(cfg, outdir=outdir, filename="annealing_hysteresis")
             saved = save_figure(fig, p, cfg)
-            print(f"   📊 Saved annealing hysteresis: {short_path(saved)}")
+            print(f"      Saved annealing hysteresis: {short_path(saved)}")
 
     return fig

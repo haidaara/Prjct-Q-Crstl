@@ -1,7 +1,7 @@
 # src/tilings/penrose_p3.py
 """
 Research-grade Penrose P3 tiling generator - FIXED VERSION
-FIXED: Proper neighbor list synchronization with adjacency graph
+Proper neighbor list synchronization with adjacency graph
 """
 
 from pynrose import Tiling, Grid, Vector, RhombusType # type: ignore
@@ -11,7 +11,7 @@ from src.utils.config import ConfigManager
 class PenroseTiling:
     """
     Research-grade Penrose P3 tiling generator using cut-and-project method.
-    FIXED: Neighbor lists properly synchronized with adjacency graph
+    Neighbor lists properly synchronized with adjacency graph
     """
     
     def __init__(self, config: ConfigManager):
@@ -38,7 +38,7 @@ class PenroseTiling:
     def generate(self) -> dict:
         """
         Generate the complete tiling with adjacency information.
-        FIXED: Proper neighbor list synchronization
+        Proper neighbor list synchronization
         """
         cell = self.grid.cell(0, 0)
         
@@ -48,7 +48,7 @@ class PenroseTiling:
         # Second pass: build tiles with neighbor information
         self._build_tiles_with_adjacency(cell)
         
-        # CRITICAL FIX: Synchronize neighbor lists with adjacency graph
+        # CRITICtical to fix: Synchronize neighbor lists with adjacency graph
         self._synchronize_neighbor_lists()
         
         # Validation
@@ -117,10 +117,10 @@ class PenroseTiling:
     
     def _synchronize_neighbor_lists(self):
         """
-        CRITICAL FIX: Ensure tile neighbor lists match adjacency graph
+        CRITICtical fixed: Ensure tile neighbor lists match adjacency graph
         This fixes the coordination number inconsistency
         """
-        print("🔄 Synchronizing neighbor lists with adjacency graph...")
+        print("  Synchronizing neighbor lists with adjacency graph...")
         
         sync_count = 0
         for tile_id_str, neighbors in self.adjacency_graph.items():
@@ -131,7 +131,7 @@ class PenroseTiling:
                 self.tiles[tile_id]["neighbors"] = neighbor_ids
                 sync_count += 1
         
-        print(f"✅ Synchronized {sync_count} tile neighbor lists")
+        print(f"   Synchronized {sync_count} tile neighbor lists")
         
         # Validate synchronization
         self._validate_synchronization()
@@ -153,11 +153,11 @@ class PenroseTiling:
                 errors.append(f"Tile {tile_id}: neighbor list mismatch")
         
         if errors:
-            print(f"⚠️  Synchronization validation found {len(errors)} mismatches")
+            print(f"    Synchronization validation found {len(errors)} mismatches")
             for error in errors[:5]:
                 print(f"   - {error}")
         else:
-            print("✅ Neighbor list synchronization validated")
+            print("   Neighbor list synchronization validated")
     
     def _find_neighbors(self, tile_index: int, vertices: list):
         """Find all neighbors for a given tile"""
@@ -249,7 +249,7 @@ class PenroseTiling:
             for error in errors[:5]:
                 print(f"  - {error}")
         else:
-            print("✓ Tiling validation passed")
+            print("   Tiling validation passed")
             
     def _get_metadata(self) -> dict:
         """Get generation metadata for reproducibility"""

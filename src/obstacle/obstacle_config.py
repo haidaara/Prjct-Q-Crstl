@@ -1,5 +1,5 @@
 """
-Efficient obstacle configuration generation for systematic studies.
+obstacle configuration generation for studies.
 """
 
 import numpy as np
@@ -9,7 +9,7 @@ from src.obstacle.obstacle_creator import ObstacleSpec
 
 
 class ObstacleConfig:
-    """High-performance obstacle configuration generator"""
+    """Obstacle configuration generator"""
     
     def __init__(self, config: ConfigManager):
         self.config = config
@@ -58,7 +58,7 @@ class ObstacleConfig:
                     density=density
                 )
     
-        print(f"📊 Generated {len(obstacle_specs)} obstacle configurations")
+        print(f" Generated {len(obstacle_specs)} obstacle configurations")
         return obstacle_specs
     
     def _generate_grid_positions(self, n_obstacles: int, window_size: List[float], 

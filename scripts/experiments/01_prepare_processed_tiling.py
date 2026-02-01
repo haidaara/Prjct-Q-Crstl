@@ -1,8 +1,8 @@
 # scripts/validate_week1_physics.py
 #!/usr/bin/env python3
 """
-Energy Landscape Validation Script - FIXED VERSION
-Enhanced with coordination validation and better diagnostics
+Energy Landscape Validation Script
+Includes coordination validation and diagnostics
 """
 
 import sys
@@ -32,23 +32,26 @@ from scripts.validation.validate_energy_landscape import (
 )
 
 
+
 def main():
-    """Run complete energy landscape validation and logging"""
-    print("🎯 ENERGY LANDSCAPE VALIDATION - FIXED VERSION")
+    """complete energy landscape validation and logging"""
+    print("ENERGY LANDSCAPE VALIDATION")
     print("=" * 50)
     
     # Track validation results and performance
     validation_results = {}
     start_time = time.time()
     
-    print("🔬 Loading configuration...")
+    print("Loading configuration...")
     try:
-        # Single Source of Truth
+        # Configuration loading
         config = ConfigManager("configs/phase2_experiments.toml")
         energy_params = config.energy
-        print(f"✅ Loaded energy config from phase2_experiments.toml")
+        print(f"Loaded energy config from phase2_experiments.toml")
     except Exception as e:
-        print(f"❌ CRITICAL ERROR: Could not load configuration.")
+        print(f"CRITICAL ERROR: Could not load configuration.")
+
+
         print(f"   Reason: {e}")
         sys.exit(1)
     
@@ -65,7 +68,7 @@ def main():
     energy_model.update_tiling_energy(tiling)
 
     # Mark outer boundary tiles as immobile and non-flippable 
-    # this reduce simulation effort on fixed boundaries
+    # so I could reduce simulation effort on fixed boundaries
     for t in tiling["tiles"]:
         if t.get("boundary_kind") == "outer_edge":
             t["immobile"] = True
@@ -73,8 +76,8 @@ def main():
 
     computation_time = time.time() - start_time
     
-    print(f"✅ Energy computation completed: {computation_time:.2f}s")
-    print(f"✅ Total configurational energy: {total_energy:.2f}")
+    print(f"Energy computation completed: {computation_time:.2f}s")
+    print(f"Total configurational energy: {total_energy:.2f}")
     
     # Run validations
     fields_valid = validate_physics_fields(tiling)
@@ -82,7 +85,7 @@ def main():
     vertex_valid = validate_vertex_classification(tiling)
     energy_validation = validate_energy_model(tiling, energy_model)
 
-    # Physics-first pass/fail: energy range AND (if surface active) surface consistency
+    # pass/fail: energy range AND (if surface active) surface consistency
     energy_valid = (
         energy_validation["energy_ranges_physically_reasonable"] and
         (energy_validation["surface_energy_consistent"] if energy_validation["surface_tension_active"] else True)
@@ -90,7 +93,7 @@ def main():
 
     # Collect comprehensive validation results
     validation_results = {
-        # --- Option A fields for EnergyLogger (prevents silent defaults in report) ---
+        # --- fields for EnergyLogger (prevents silent defaults in report) ---
         "surface_tension_active": energy_validation["surface_tension_active"],
         "boundary_tiles_detected": energy_validation["boundary_tiles_detected"],
         "energy_class_computed": energy_validation["energy_class_computed"],
@@ -99,7 +102,7 @@ def main():
         "has_missing_bonds": energy_validation["has_missing_bonds"],
         "has_surface_energy": energy_validation["has_surface_energy"],
 
-        # (optional but extremely useful to debug future weirdness)
+        # Diagnostic fields for anomaly detection
         "energy_min_observed": energy_validation["min_energy_observed"],
         "energy_max_observed": energy_validation["max_energy_observed"],
         "energy_max_expected": energy_validation["max_expected_energy"],
@@ -134,7 +137,7 @@ def main():
     # Initialize energy logger
     energy_logger = EnergyLogger()
     
-    # Log energy-specific concepts
+    # Log energy specific concepts
     params_file = energy_logger.log_energy_parameters(energy_model)
     stats_file = energy_logger.log_vertex_environment_statistics(tiling)
     validation_file = energy_logger.log_energy_validation_report(
@@ -144,7 +147,7 @@ def main():
         tiling_data=tiling,
     )
     
-    # --- Physics clarity: separate bulk energy from surface contribution ---
+    # --- separate bulk energy from surface contribution ---
     mrw = float(getattr(energy_model.params, "matching_rule_weight", 1.0))
 
     for t in tiling["tiles"]:
@@ -165,17 +168,17 @@ def main():
     tiling_file = energy_logger.save_energy_initialized_tiling(tiling)
     
     print("\n" + "=" * 50)
-    print("📊 ENERGY LANDSCAPE VALIDATION RESULTS")
+    print("ENERGY LANDSCAPE VALIDATION RESULTS")
     print("=" * 50)
     
     # Report validation status
     all_valid = all([fields_valid, coordination_valid, vertex_valid, energy_valid])
     
     if all_valid:
-        print("✅ ENERGY LANDSCAPE VALIDATION PASSED")
-        print("📝 Energy model implementation complete and paper-ready!")
+        print("ENERGY LANDSCAPE VALIDATION PASSED")
+        print("Energy model implementation complete")
     else:
-        print("❌ ENERGY LANDSCAPE VALIDATION FAILED")
+        print("ENERGY LANDSCAPE VALIDATION FAILED")
         if not fields_valid:
             print("   - Physics fields missing in tiling data")
         if not coordination_valid:
@@ -186,21 +189,12 @@ def main():
             print("   - Energy model physics inconsistent")
     
     # Report logging output
-    print("\n📁 ENERGY LANDSCAPE LOGGED:")
+    print("\nENERGY LANDSCAPE LOGGED:")
     print(f"   - Energy parameters: {params_file}")
     print(f"   - Vertex statistics: {stats_file}")
     print(f"   - Validation report: {validation_file}")
     print(f"   - Simulation-ready tiling: {tiling_file}")
     
-    # Check simulation readiness
-    if validation_results["simulation_readiness"]["monte_carlo_ready"]:
-        print("\n🚀 ENERGY LANDSCAPE READY FOR MONTE CARLO SIMULATIONS!")
-        print("   Next: Implement phason flip mechanics and Monte Carlo relaxation")
-        return True
-    else:
-        print("\n❌ Energy validation failed - check validation report")
-        print("   Please address validation issues before proceeding")
-        return False
 
 if __name__ == "__main__":
     success = main()

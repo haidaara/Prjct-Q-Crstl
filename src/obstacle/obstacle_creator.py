@@ -1,6 +1,6 @@
 # src/obstacle/obstacle_creator.py
 """
-High-performance obstacle creation with spatial indexing for research scalability.
+obstacle creation with spatial indexing.
 """
 
 import numpy as np
@@ -14,7 +14,7 @@ try:
     from scipy.spatial import cKDTree as KDTree
 except ImportError:
     KDTree = None
-    print("⚠️  SciPy not available - using fallback spatial indexing (recommend install for large tilings)")
+    print("    SciPy not available - using fallback spatial indexing (recommend install for large tilings)")
 
 @dataclass
 class ObstacleSpec:
@@ -36,7 +36,7 @@ class ObstacleCreator:
         
     def create_obstacles(self, tiling_data: Dict, obstacle_spec: ObstacleSpec) -> Dict:
         """Main entry point - create obstacles with optimal performance"""
-        print(f"🚀 Creating {obstacle_spec.type} obstacles (density: {obstacle_spec.density})")
+        print(f"   Creating {obstacle_spec.type} obstacles (density: {obstacle_spec.density})")
         
         # Build spatial index for lightning-fast lookups
         self._build_spatial_index(tiling_data)
@@ -82,11 +82,11 @@ class ObstacleCreator:
         
         if KDTree is not None and len(tiles) > 1000:
             self._tile_tree = KDTree(self._tile_centers)
-            print("📊 Built spatial index with KDTree")
+            print("   Built spatial index with KDTree")
         else:
             self._tile_tree = None
             if len(tiles) > 1000:
-                print("📊 Using fallback spatial indexing (SciPy recommended for large tilings)")
+                print("   Using fallback spatial indexing (SciPy recommended for large tilings)")
         
         # Build ID to index mapping with normalized integer keys
         self._id_to_index = {int(tile["id"]): i for i, tile in enumerate(tiles)}  # NORMALIZED TO INT

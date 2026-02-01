@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-VALIDATION 1: TILING STRUCTURE (Milestone 1)
+TILING STRUCTURE (Milestone 1)
 Checks:
 - adjacency_graph exists and is parseable
 - tile id == index
@@ -28,7 +28,7 @@ def _to_int(x):
 
 
 def check_structure(ignore_removed_in_symmetry: bool = True) -> bool:
-    print("🏗️  VALIDATING TILING STRUCTURE")
+    print("VALIDATING TILING STRUCTURE")
     print("=" * 60)
 
     tiling = load_tiling()
@@ -37,13 +37,13 @@ def check_structure(ignore_removed_in_symmetry: bool = True) -> bool:
     num_tiles = len(tiles)
 
     if not adj:
-        print("❌ FAIL: adjacency_graph is empty or missing.")
+        print("FAIL: adjacency_graph is empty or missing.")
         return False
 
     print("1) ID consistency (id == index)")
     for i, t in enumerate(tiles):
         if t.get("id") != i:
-            print(f"❌ FAIL: tiles[{i}].id = {t.get('id')} (expected {i})")
+            print(f"FAIL: tiles[{i}].id = {t.get('id')} (expected {i})")
             return False
 
     print("2) Parse adjacency + invariants")
@@ -53,11 +53,11 @@ def check_structure(ignore_removed_in_symmetry: bool = True) -> bool:
             kid = _to_int(k)
             nlist = [_to_int(n) for n in neighbors]
         except Exception as e:
-            print(f"❌ FAIL: invalid adjacency entry for key={k!r}: {e}")
+            print(f"FAIL: invalid adjacency entry for key={k!r}: {e}")
             return False
 
         if not (0 <= kid < num_tiles):
-            print(f"❌ FAIL: adjacency key out of range: {kid}")
+            print(f"FAIL: adjacency key out of range: {kid}")
             return False
 
         norm_adj[kid] = nlist
@@ -65,17 +65,17 @@ def check_structure(ignore_removed_in_symmetry: bool = True) -> bool:
     for a, nlist in norm_adj.items():
         for b in nlist:
             if not (0 <= b < num_tiles):
-                print(f"❌ FAIL: neighbor id out of range: {a} -> {b}")
+                print(f"FAIL: neighbor id out of range: {a} -> {b}")
                 return False
             if a == b:
-                print(f"❌ FAIL: self-neighbor detected: tile {a} lists itself")
+                print(f"FAIL: self-neighbor detected: tile {a} lists itself")
                 return False
 
             if ignore_removed_in_symmetry and (tiles[a].get("removed", False) or tiles[b].get("removed", False)):
                 continue
 
             if a not in norm_adj.get(b, []):
-                print(f"❌ FAIL: asymmetry detected: {a}->{b} but {b} does not list {a}")
+                print(f"FAIL: asymmetry detected: {a}->{b} but {b} does not list {a}")
                 return False
 
     print("3) Coordination (active tiles only)")
@@ -95,10 +95,10 @@ def check_structure(ignore_removed_in_symmetry: bool = True) -> bool:
     print(f"   Active tiles: {active}")
     print(f"   Coordination distribution: {dict(sorted(counts.items()))}")
     if orphans:
-        print(f"❌ FAIL: {orphans} active tiles have 0 neighbors.")
+        print(f"FAIL: {orphans} active tiles have 0 neighbors.")
         return False
 
-    print("✅ PASS: tiling topology looks healthy.")
+    print("PASS: tiling topology looks healthy.")
     return True
 
 

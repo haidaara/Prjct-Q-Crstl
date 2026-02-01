@@ -1,7 +1,7 @@
 # src/simulation/mc_engine.py
 """
 Monte Carlo engine with proper energy consistency verification
-FIXED VERSION: Implements Option A (Radius 4 for Delta E, Radius 3 for Geometry)
+Implements Option A (Radius 4 for Delta E, Radius 3 for Geometry)
 """
 
 import math
@@ -153,7 +153,7 @@ class MonteCarloEngine:
         drift = abs(actual_energy - self.current_energy)
 
         if drift > 0.001:
-            print(f"⚠️  ENERGY DRIFT {message}: {drift:.6f} "
+            print(f"    ENERGY DRIFT {message}: {drift:.6f} "
                   f"(MC={self.current_energy:.6f}, actual={actual_energy:.6f})")
 
         self.metrics["energy_drift_history"].append(drift)
@@ -296,7 +296,7 @@ class MonteCarloEngine:
         if do_detail and e_before_map is not None and e_after_map is not None:
             sign = "+" if delta_energy >= 0 else ""
             self._vprint(
-                f"🔁 Step {self._step_counter}: cluster={cluster_ids} ΔE={sign}{delta_energy:.6f} accept={accepted}",
+                f"   Step {self._step_counter}: cluster={cluster_ids} ΔE={sign}{delta_energy:.6f} accept={accepted}",
                 level=2
             )
             self._vprint(
@@ -380,7 +380,7 @@ class MonteCarloEngine:
 
     def run_debug_validation(self, tiling_data: Dict, steps: int = 200) -> Dict:
         """Run MC with full verification for debugging"""
-        print(f"🔍 Running debug validation for {steps} steps...")
+        print(f"   Running debug validation for {steps} steps...")
         self.metrics["energy_drift_history"] = []
         stats = self.run_sweep(tiling_data, steps=steps, debug_mode=True)
         return stats
@@ -413,7 +413,7 @@ class MonteCarloEngine:
             "max_drift": max(self.metrics["energy_drift_history"]) if self.metrics["energy_drift_history"] else 0.0
         }
 
-        print(f"✅ MC sweep: {acceptance_count}/{steps} accepted ({final_rate:.1%}), max drift: {stats['max_drift']:.6f}")
+        print(f"   MC sweep: {acceptance_count}/{steps} accepted ({final_rate:.1%}), max drift: {stats['max_drift']:.6f}")
         return stats
 
     def _metropolis_accept(self, delta_energy: float) -> bool:

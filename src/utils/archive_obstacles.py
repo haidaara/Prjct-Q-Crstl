@@ -14,7 +14,7 @@ def main():
     
     # Check if obstacle directory exists and has content
     if not obstacle_dir.exists() or not any(obstacle_dir.iterdir()):
-        print("📁 No existing obstacle data found - nothing to archive")
+        print("   No existing obstacle data found - nothing to archive")
         return
     
     # Create archive directory with timestamp
@@ -27,14 +27,14 @@ def main():
         
         # Move obstacle directory to archive
         shutil.move(str(obstacle_dir), str(archive_path / "obstacles"))
-        print(f"📦 Archived existing data to: {archive_path}")
+        print(f"   Archived existing data to: {archive_path}")
         
         # Recreate empty obstacle directory
         obstacle_dir.mkdir(parents=True, exist_ok=True)
-        print("✅ Clean obstacle directory ready for new data")
+        print("   Clean obstacle directory ready for new data")
         
     except Exception as e:
-        print(f"❌ Archive failed: {e}")
+        print(f"   Archive failed: {e}")
 
 if __name__ == "__main__":
     main()

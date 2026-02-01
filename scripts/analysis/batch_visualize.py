@@ -20,7 +20,7 @@ def main():
 
     input_dir = Path(args.dir)
     if not input_dir.exists():
-        print(f"❌ Error: Directory not found: {input_dir}")
+        print(f"   Error: Directory not found: {input_dir}")
         sys.exit(1)
 
     # 1. Gather all candidates (Matching your visualize_state.py logic)
@@ -32,7 +32,7 @@ def main():
         if "summary" not in p.name and "latest" not in p.name and "pointer" not in p.name
     ]
 
-    print(f"🔍 Found {len(files_to_plot)} state files. Starting batch visualization...")
+    print(f"   Found {len(files_to_plot)} state files. Starting batch visualization...")
 
     for json_path in tqdm(files_to_plot, desc="Generating Plots"):
         try:
@@ -53,9 +53,9 @@ def main():
             plot_physics_matrix(tiling_data, save_path=str(save_path))
             
         except Exception as e:
-            print(f"\n⚠️ Skipping {json_path.name}: {e}")
+            print(f"\n   Skipping {json_path.name}: {e}")
 
-    print(f"\n✅ Batch complete. Plots saved to designated 'viz' folders.")
+    print(f"\n   Batch complete. Plots saved to designated 'viz' folders.")
 
 if __name__ == "__main__":
     main()

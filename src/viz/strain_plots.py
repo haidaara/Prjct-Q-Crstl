@@ -1,7 +1,7 @@
 """Phason-strain (energy) visualization.
 
 In current snapshots we expect per-tile ``phason_energy`` to be present (this is
-already computed by your phason-strain model).
+already computed by the phason-strain model).
 
 This module treats ``phason_energy`` as a *strain energy density* field suitable for publication:
 - maps (spatial distribution)
@@ -106,7 +106,7 @@ def plot_strain_energy_map(
         if save_path is not None or outdir is not None:
             pth = Path(save_path) if save_path is not None else resolve_output_path(cfg, outdir=outdir, filename="phason_strain_energy_map")
             saved = save_figure(fig, pth, cfg)
-            print(f"   📈 Saved strain map: {short_path(saved)}")
+            print(f"      Saved strain map: {short_path(saved)}")
 
     return fig
 
@@ -144,7 +144,7 @@ def plot_strain_series(
         if save_path is not None or outdir is not None:
             pth = Path(save_path) if save_path is not None else resolve_output_path(cfg, outdir=outdir, filename="phason_strain_series")
             saved = save_figure(fig, pth, cfg)
-            print(f"   📈 Saved strain series: {short_path(saved)}")
+            print(f"      Saved strain series: {short_path(saved)}")
 
     return fig
 
@@ -180,7 +180,7 @@ def plot_strain_vs_defects(
         if save_path is not None or outdir is not None:
             pth = Path(save_path) if save_path is not None else resolve_output_path(cfg, outdir=outdir, filename="defects_vs_strain")
             saved = save_figure(fig, pth, cfg)
-            print(f"   📈 Saved defects-vs-strain: {short_path(saved)}")
+            print(f"      Saved defects-vs-strain: {short_path(saved)}")
 
     return fig
 
@@ -230,7 +230,7 @@ def plot_strain_histogram(
         if save_path is not None or outdir is not None:
             pth = Path(save_path) if save_path is not None else resolve_output_path(cfg, outdir=outdir, filename="phason_strain_hist")
             saved = save_figure(fig, pth, cfg)
-            print(f"   📈 Saved strain histogram: {short_path(saved)}")
+            print(f"      Saved strain histogram: {short_path(saved)}")
 
     return fig
 
@@ -296,6 +296,6 @@ def plot_strain_vs_distance(
         if save_path is not None or outdir is not None:
             pth = Path(save_path) if save_path is not None else resolve_output_path(cfg, outdir=outdir, filename="phason_strain_vs_distance")
             saved = save_figure(fig, pth, cfg)
-            print(f"   📈 Saved strain vs distance: {short_path(saved)}")
+            print(f"      Saved strain vs distance: {short_path(saved)}")
 
     return fig

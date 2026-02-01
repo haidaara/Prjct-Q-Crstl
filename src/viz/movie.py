@@ -421,7 +421,7 @@ def make_movie(
     cfg = cfg or load_publication_config(config_path)
     paths = list_snapshots(snapshot_dir)
     if not paths:
-        print(f"⚠️  No snapshots found in {snapshot_dir}")
+        print(f"      No snapshots found in {snapshot_dir}")
         return None
 
     _log_forced_scale(view=view, cfg=cfg, n_snapshots=len(paths))

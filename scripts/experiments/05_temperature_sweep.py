@@ -91,12 +91,12 @@ def run_temperature_sweep(config: dict, cli_verbosity=None) -> dict:
     latest_file = out_dir / "latest.json"
 
     if verbosity >= 1:
-        print("🌡️ TEMPERATURE SWEEP")
+        print("TEMPERATURE SWEEP")
         print("=" * 60)
-        print(f"📥 Base config: {short_path(config.get('_meta_config_path', ''))}")
-        print(f"📤 Output dir : {short_path(out_dir)}")
-        print(f"⚙️  scenario={scenario} temps={temps}")
-        print(f"🔧 debug: verbosity={verbosity}, progress_every={progress_every}, trace_every={trace_every}")
+        print(f"Base config: {short_path(config.get('_meta_config_path', ''))}")
+        print(f"Output dir : {short_path(out_dir)}")
+        print(f"scenario={scenario} temps={temps}")
+        print(f"debug: verbosity={verbosity}, progress_every={progress_every}, trace_every={trace_every}")
 
     growth_run = load_growth_runner()
 
@@ -106,7 +106,7 @@ def run_temperature_sweep(config: dict, cli_verbosity=None) -> dict:
         t_tok = temp_token(T)
 
         if verbosity >= 1:
-            print(f"\n🌡️  [{i}/{len(temps)}] Running T={T}")
+            print(f"\n[{i}/{len(temps)}] Running T={T}")
 
         cfg = copy.deepcopy(config)
         cfg.setdefault("monte_carlo", {})
@@ -151,8 +151,8 @@ def run_temperature_sweep(config: dict, cli_verbosity=None) -> dict:
 
         if verbosity >= 1:
             print(
-                f"   ↳ file={row['file']}  acc_mean={row['mean_acceptance_rate']}  "
-                f"defects={row['defects_start']}→{row['defects_end']}  "
+                f"   -> file={row['file']}  acc_mean={row['mean_acceptance_rate']}  "
+                f"defects={row['defects_start']}->{row['defects_end']}  "
                 f"E_final={row['final_energy']}"
             )
 
@@ -180,8 +180,8 @@ def run_temperature_sweep(config: dict, cli_verbosity=None) -> dict:
     overwrite_latest(sweep_file, latest_file)
 
     if verbosity >= 1:
-        print("\n✅ Temperature sweep complete!")
-        print(f"📊 Summary saved to: {short_path(sweep_file)}")
+        print("\nTemperature sweep complete!")
+        print(f"Summary saved to: {short_path(sweep_file)}")
 
     return sweep_out
 

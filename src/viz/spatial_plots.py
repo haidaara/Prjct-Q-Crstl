@@ -286,6 +286,6 @@ def plot_defect_density_by_distance(
         if save_path is not None or outdir is not None:
             p = Path(save_path) if save_path is not None else resolve_output_path(cfg, outdir=outdir, filename="defect_density_by_distance")
             saved = save_figure(fig, p, cfg)
-            print(f"   📊 Saved defect density by distance: {short_path(saved)}")
+            print(f"      Saved defect density by distance: {short_path(saved)}")
 
     return fig

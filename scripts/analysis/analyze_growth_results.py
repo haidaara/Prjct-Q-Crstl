@@ -129,13 +129,13 @@ def main() -> int:
         fp = select_file(input_dir, args.pattern, args.latest)
 
     if fp is None or not fp.exists():
-        print("⚠️ No matching growth experiment files found.")
+        print("   No matching growth experiment files found.")
         return 0
 
     data = load_json(fp)
     steps = data.get("growth_steps", []) or []
     if not steps:
-        print(f"⚠️ File has no growth_steps: {fp}")
+        print(f"   File has no growth_steps: {fp}")
         return 1
 
     # quick summary
@@ -155,12 +155,11 @@ def main() -> int:
 
     out_png = outdir / f"growth_{stem}.png"
     plot_series(steps, out_png, title=f"Growth results: {stem}")
-    print(f"🖼️  Wrote plot: {out_png}")
+    print(f"   Wrote plot: {out_png}")
 
     out_csv = outdir / f"growth_{stem}.csv"
     write_csv(steps, out_csv)
-    print(f"💾 Wrote CSV: {out_csv}")
-
+    print(f"   Wrote CSV: {out_csv}")
     return 0
 
 

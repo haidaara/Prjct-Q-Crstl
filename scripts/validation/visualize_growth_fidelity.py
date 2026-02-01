@@ -40,14 +40,14 @@ def plot_growth_forensics(tiling_data, output_path, input_tiling_path=None):
     config_subtitle = f"Config: T={temp} | Steps={steps} | {dens}"
 
     if not tiles:
-        print("   ⚠️ ERROR: No tiles found.")
+        print("   ERROR: No tiles found.")
         return
 
     # --- 1. IDENTIFY NEW TILES (Geometric Differencing) ---
     new_tile_indices = set()
     
     if input_tiling_path and os.path.exists(input_tiling_path):
-        print(f"   • Loading input baseline: {Path(input_tiling_path).name}")
+        print(f"   INFO: Loading input baseline: {Path(input_tiling_path).name}")
         try:
             with open(input_tiling_path, 'r') as f:
                 input_data = json.load(f)
@@ -66,12 +66,12 @@ def plot_growth_forensics(tiling_data, output_path, input_tiling_path=None):
                     new_tile_indices.add(idx)
                     new_count += 1
             
-            print(f"   • Geometric Diff: Found {new_count} truly new tiles.")
+            print(f"   INFO: Geometric Diff: Found {new_count} truly new tiles.")
             
         except Exception as e:
-            print(f"   ⚠️ Baseline comparison failed: {e}")
+            print(f"   WARNING: Baseline comparison failed: {e}")
     else:
-        print("   ⚠️ Input tiling file not found. Panel 4 will be blank.")
+        print("   WARNING: Input tiling file not found. Panel 4 will be blank.")
 
     # --- 2. DATA EXTRACTION ---
     polygons = []
@@ -158,7 +158,7 @@ def plot_growth_forensics(tiling_data, output_path, input_tiling_path=None):
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.savefig(output_path, dpi=150)
     plt.close(fig)
-    print(f"   ✅ SUCCESS: Matrix saved to: {output_path}")
+    print(f"   SUCCESS: Matrix saved to: {output_path}")
 
 def _render_collection(ax, polys, colors):
     coll = PatchCollection(polys, match_original=False)
@@ -180,7 +180,7 @@ if __name__ == "__main__":
             if path.exists():
                 files_to_process.append(str(path))
             else:
-                print(f"⚠️ File not found: {arg}")
+                print(f"   WARNING: File not found: {arg}")
     else:
         # Auto-detect latest if no args
         # We check both growth and healing folders since you are working on both
@@ -194,17 +194,17 @@ if __name__ == "__main__":
         if found_files:
             found_files.sort(key=os.path.getmtime, reverse=True)
             files_to_process.append(str(found_files[0]))
-            print(f"🤖 AUTO-DETECT: Found latest run: {found_files[0].name}")
+            print(f"   INFO: AUTO-DETECT: Found latest run: {found_files[0].name}")
 
     if not files_to_process:
-        print("❌ No files found to process.")
+        print("   ERROR: No files found to process.")
         sys.exit(1)
 
-    print(f"🚀 Batch processing {len(files_to_process)} files...")
+    print(f"   INFO: Batch processing {len(files_to_process)} files...")
 
     # 2. Process Loop (The Fix for Wildcards & Crashes)
     for input_file in files_to_process:
-        print(f"\n🔎 PROCESSING: {Path(input_file).name}")
+        print(f"\n   INFO: PROCESSING: {Path(input_file).name}")
         
         # --- A. Load Data SAFELY ---
         data = None
@@ -212,11 +212,11 @@ if __name__ == "__main__":
             with open(input_file, 'r') as f:
                 content = f.read()
                 if not content.strip():
-                    print("   ⚠️ SKIP: File is empty (previous crash?).")
+                    print("   WARNING: File is empty (previous crash?).")
                     continue
                 data = json.loads(content)
         except Exception as e:
-            print(f"   ❌ ERROR: Could not load JSON: {e}")
+            print(f"   ERROR: Could not load JSON: {e}")
             continue
 
         # --- B. Determine Output Path ---
@@ -246,6 +246,6 @@ if __name__ == "__main__":
             # We call your existing function here
             plot_growth_forensics(data, str(output_file), input_tiling_path=baseline_path)
         except Exception as e:
-            print(f"   ⚠️ Plotting failed for this file: {e}")
+            print(f"   ERROR: Plotting failed for this file: {e}")
             import traceback
             traceback.print_exc()

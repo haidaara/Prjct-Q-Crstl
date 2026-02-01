@@ -3,13 +3,11 @@ src/energy/phason_strain.py
 
 Discrete phason-elastic ("Option A-lite") energy for Penrose tilings.
 
-Silent module: no prints. Use validation scripts for diagnostics.
-
 Physics:
     E_phason(i) = (K/2) * (1/N_i) * sum_{j in N(i)} ||w_i - w_j||^2
 
 Where w_i is the perpendicular-space coordinate derived from a calibrated lift:
-    center ≈ M_par @ n + origin
+    center == M_par @ n + origin
     w = M_perp^T @ n
 """
 
