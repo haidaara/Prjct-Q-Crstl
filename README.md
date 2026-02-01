@@ -1,0 +1,63 @@
+# Quasi-Phason Simulation Framework
+
+A computational toolkit for modeling **phason dynamics**, **defect healing**, and **quasicrystal growth** in Penrose P3 tilings. This project uses Monte Carlo simulations with a Widom-inspired energy model to investigate how phason strain and topological constraints influence the healing and growth evolution of quasicrystals.
+
+To run the full project pipeline, execute the following steps in order.
+To change the experiment configuration, use the toml files in `configs/`.
+
+#### 1st: Generate the Raw Tiling
+
+```bash
+python scripts/experiments/01_generate_tiling.py
+
+# data/raw is then generated
+# validate the topology by:
+python scripts/validation/validate_tiling.py
+
+```
+
+#### 2nd: Initialize the Energy Landscape for the Generated Raw Data
+
+```bash
+python scripts/experiments/01_prepare_processed_tiling.py
+
+# validate the energy:
+python scripts/validation/validate_energy.py
+
+```
+
+#### 3rd: Calibrate the Phason Strain Basis for the Specific Tiling Geometry
+
+```bash
+python scripts/dev_tools/calibrate_phason_basis.py
+# generates: configs/phason_calibration.json
+
+# then verify the phason strain:
+python scripts/validation/validate_phason_strain.py
+
+```
+
+#### 4th: Generate Obstacles
+
+```bash
+python scripts/experiments/02_generate_obstacles.py
+
+# verify the obstacle files:
+python scripts/validation/validate_obstacles.py
+
+```
+
+#### 5th: Run the Healing Experiment
+
+```bash
+python scripts/experiments/03_obstacle_healing.py --config configs/obstacle_healing.toml
+
+# generated data are in data/experiments/
+
+```
+
+#### 6th: Run the Growth Experiment
+
+*Upcoming step...*
+
+---
