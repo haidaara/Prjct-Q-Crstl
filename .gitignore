@@ -45,3 +45,33 @@ Thumbs.db
 output*. md
 discussion*. md
 tree*. md
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Documentation builds
+__doc/
+docs/_build/
+
+# Data files
+data/
+*.csv
+*.h5
+*.hdf5
+
+# Output files
+output/
+results/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
