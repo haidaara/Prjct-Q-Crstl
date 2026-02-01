@@ -4,10 +4,10 @@ from src.energy.combinatorial_classifier import CombinatorialVertexClassifier
 
 def validate_coordination_distribution(tiling_data):
     """
-    FIXED: Validate coordination numbers are physically reasonable
+    Validate coordination numbers are physically reasonable
     Uses adjacency graph as primary source
     """
-    print("🔬 Validating Coordination Distribution...")
+    print(" Validating Coordination Distribution...")
     
     adjacency_graph = tiling_data["adjacency_graph"]
     coord_counts = {}
@@ -43,7 +43,7 @@ def validate_coordination_distribution(tiling_data):
 
 def validate_physics_fields(tiling_data):
     """Validate that physics fields are properly set in tiling data"""
-    print("🔬 Validating Physics Fields...")
+    print(" Validating Physics Fields...")
     
     required_fields = ["vertex_class", "local_energy", "growth_status", "flippable"]
     missing_fields = []
@@ -55,16 +55,16 @@ def validate_physics_fields(tiling_data):
                 break
     
     if missing_fields:
-        print(f"❌ Missing physics fields: {set(missing_fields)}")
+        print(f" Missing physics fields: {set(missing_fields)}")
         return False
     else:
-        print("✅ All physics fields present")
+        print(" All physics fields present")
         return True
 
 
 def validate_vertex_classification(tiling_data):
     """Validate vertex classification distribution is realistic - PROCESS ALL TILES"""
-    print("🔬 Validating Vertex Classification...")
+    print(" Validating Vertex Classification...")
     
     classifier = CombinatorialVertexClassifier()
     
@@ -75,13 +75,13 @@ def validate_vertex_classification(tiling_data):
             classification = classifier.classify_vertex_environment(tile_id, tiling_data)
             classifications.append(classification)
     
-    # Check distribution is realistic (not 99% defective)
+    # Check distribution is realistic 
     low_count = classifications.count("LOW_ENERGY")
     medium_count = classifications.count("MEDIUM_ENERGY") 
     high_count = classifications.count("HIGH_ENERGY")
     
     total = len(classifications)
-    print(f"✅ Classification distribution: {low_count}/{total} low, {medium_count}/{total} medium, {high_count}/{total} high")
+    print(f" Classification distribution: {low_count}/{total} low, {medium_count}/{total} medium, {high_count}/{total} high")
     
     # Realistic distribution: should have mostly low/medium energy
     realistic = (low_count + medium_count) > total * 0.6
@@ -90,14 +90,14 @@ def validate_vertex_classification(tiling_data):
 
 def validate_energy_model(tiling_data, energy_model):
     """
-    Physics-first validation consistent with Option A (surface tension + weighted surface term).
+    Physics-first validation consistent  (surface tension + weighted surface term).
     Returns a dict with:
       - energy_ranges_physically_reasonable (bool)
-      - Option-A field presence flags for EnergyLogger
+      - field presence flags for EnergyLogger
       - surface_energy_consistent (bool)
       - max_expected_energy (float) computed from model params + observed missing bonds
     """
-    print("🔬 Validating Energy Model (Option-A aware)...")
+    print(" Validating Energy Model...")
 
     tiles = tiling_data["tiles"]
     active_tiles = [t for t in tiles if not t.get("removed", False) and t.get("obstacle_type") != "pore"]
@@ -110,7 +110,7 @@ def validate_energy_model(tiling_data, energy_model):
             "max_energy_observed": 0.0,
             "max_expected_energy": 0.0,
             "out_of_range_tile_ids_preview": [],
-            # Option A flags expected by logger
+
             "surface_tension_active": False,
             "boundary_tiles_detected": 0,
             "energy_class_computed": False,
@@ -125,7 +125,7 @@ def validate_energy_model(tiling_data, energy_model):
 
     p = energy_model.params
 
-    # --- Option A activation (physics meaning: surface contributes to local_energy) ---
+    # --- activation (physics meaning: surface contributes to local_energy) ---
     stpb = float(getattr(p, "surface_tension_per_bond", 0.0))
     mrw  = float(getattr(p, "matching_rule_weight", 1.0))
     ccw  = float(getattr(p, "continuous_correction_weight", 0.0))
@@ -153,7 +153,7 @@ def validate_energy_model(tiling_data, energy_model):
     ]
     energy_ranges_ok = (len(out_of_range) == 0)
 
-    # --- Option-A field presence (what EnergyLogger expects to report) ---
+    # --- field presence (what EnergyLogger expects to report) ---
     has_energy_class  = all("energy_class"  in t for t in active_tiles)
     has_boundary_kind = all("boundary_kind" in t for t in active_tiles)
     has_missing_bonds = all("missing_bonds" in t for t in active_tiles)
@@ -195,11 +195,11 @@ def validate_energy_model(tiling_data, energy_model):
               f"mb={sample_energies[tid]['missing_bonds']}  "
               f"kind={sample_energies[tid]['boundary_kind']}")
 
-    print(f"✅ Observed energy: min={min_obs:.3f}, max={max_obs:.3f}")
-    print(f"✅ Expected max (Option-A aware): {max_expected:.3f}")
-    print(f"✅ Energy range OK: {energy_ranges_ok}  (out_of_range={len(out_of_range)})")
+    print(f" Observed energy: min={min_obs:.3f}, max={max_obs:.3f}")
+    print(f" Expected max (Option-A aware): {max_expected:.3f}")
+    print(f" Energy range OK: {energy_ranges_ok}  (out_of_range={len(out_of_range)})")
     if surface_tension_active:
-        print(f"✅ Surface energy consistent: {surface_energy_consistent}")
+        print(f" Surface energy consistent: {surface_energy_consistent}")
 
     return {
         "energy_ranges_physically_reasonable": energy_ranges_ok,
@@ -208,7 +208,7 @@ def validate_energy_model(tiling_data, energy_model):
         "max_expected_energy": max_expected,
         "out_of_range_tile_ids_preview": out_of_range[:20],
 
-        # Option-A payload expected by EnergyLogger.log_energy_validation_report()
+        # payload expected by EnergyLogger.log_energy_validation_report()
         "surface_tension_active": surface_tension_active,
         "boundary_tiles_detected": boundary_tiles_detected,
         "energy_class_computed": surface_tension_active and has_energy_class,

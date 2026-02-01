@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Plot / diagnose the energy landscape by sampling phason flips and measuring ΔE.
+Plot / diagnose the energy landscape by sampling phason flips and measuring delta_E.
 
 This consolidates older:
 - plot_energy_landscape.py
@@ -8,7 +8,7 @@ This consolidates older:
 
 Key properties:
 - Uses strict cache/field hygiene (wipes local_energy + vertex_class + clears model caches).
-- Uses a k-ring neighborhood (default k=4) for robust manual ΔE estimation.
+- Uses a k-ring neighborhood (default k=4) for robust manual delta_E estimation.
 - Does NOT modify your input tiling on disk (all work is in-memory).
 
 Examples:
@@ -104,7 +104,7 @@ def measure_delta_e_for_hexagon(
     k: int = 4,
 ) -> Optional[float]:
     """
-    Returns ΔE (after - before) for this hexagon, or None if the flip could not be applied.
+    Returns delta_E (after - before) for this hexagon, or None if the flip could not be applied.
     """
     # Neighborhood for robust manual delta calculation
     region_ids = list(flip_engine._get_k_ring_neighborhood(list(hexagon), tiling, k=k))
@@ -139,7 +139,7 @@ def plot_histogram(deltas: List[float], out_png: Path, title: str) -> None:
     plt.hist(arr, bins=50, edgecolor="black")
     plt.axvline(0.0)
     plt.title(title)
-    plt.xlabel("ΔE (after - before)")
+    plt.xlabel("delta_E (after - before)")
     plt.ylabel("Count")
     fig.tight_layout()
     out_png.parent.mkdir(parents=True, exist_ok=True)
@@ -156,7 +156,7 @@ def main() -> int:
     ap.add_argument("--sample", type=int, default=500,
                     help="How many hexagons to sample (default 500). Use 0 to use all.")
     ap.add_argument("--k", type=int, default=4,
-                    help="k-ring neighborhood for manual ΔE (default 4).")
+                    help="k-ring neighborhood for manual delta_E (default 4).")
     ap.add_argument("--seed-radius", type=float, default=10.0,
                     help="Seed radius if using --seed-only (default 10).")
     ap.add_argument("--seed-only", action="store_true",
@@ -164,7 +164,7 @@ def main() -> int:
     ap.add_argument("--outdir", default="results/analysis",
                     help="Output directory for plots/data.")
     ap.add_argument("--save-deltas", action="store_true",
-                    help="Also save ΔE list as JSON.")
+                    help="Also save delta_E list as JSON.")
     ap.add_argument("--rng-seed", type=int, default=0,
                     help="RNG seed for sampling (default 0).")
     args = ap.parse_args()
@@ -190,14 +190,14 @@ def main() -> int:
         hexagons = _seed_only_filter(hexagons, tiling)
 
     if not hexagons:
-        print("❌ No flippable hexagons found for the selected region.")
+        print("   No flippable hexagons found for the selected region.")
         return 1
 
     # Sampling
     if args.sample and args.sample > 0 and len(hexagons) > args.sample:
         hexagons = random.sample(hexagons, args.sample)
 
-    print(f"🔍 Sampling {len(hexagons)} hexagons (k={args.k}, seed_only={args.seed_only}) ...")
+    print(f"   Sampling {len(hexagons)} hexagons (k={args.k}, seed_only={args.seed_only}) ...")
 
     deltas: List[float] = []
     failed = 0
@@ -209,7 +209,7 @@ def main() -> int:
         deltas.append(de)
 
     if not deltas:
-        print("❌ No valid ΔE samples computed.")
+        print("     No valid delta_E samples computed.")
         return 1
 
     mean = statistics.fmean(deltas)
@@ -217,10 +217,10 @@ def main() -> int:
     uphill = sum(1 for x in deltas if x > 0)
     downhill = sum(1 for x in deltas if x < 0)
 
-    print("\n=== ΔE Summary ===")
+    print("\n=== delta_E Summary ===")
     print(f"Samples: {len(deltas)} (failed: {failed})")
-    print(f"Mean ΔE: {mean:.6f}")
-    print(f"Std  ΔE: {stdev:.6f}")
+    print(f"Mean delta_E: {mean:.6f}")
+    print(f"Std  delta_E: {stdev:.6f}")
     print(f"Uphill:  {uphill/len(deltas):.1%}  (count={uphill})")
     print(f"Downhill:{downhill/len(deltas):.1%}  (count={downhill})")
     print(f"Min/Max: {min(deltas):.6f} / {max(deltas):.6f}")
@@ -228,14 +228,14 @@ def main() -> int:
     outdir = Path(args.outdir)
     tag = "seed" if args.seed_only else "all"
     out_png = outdir / f"deltaE_hist_{tag}_k{args.k}_n{len(deltas)}.png"
-    plot_histogram(deltas, out_png, f"ΔE distribution ({tag}, k={args.k}, n={len(deltas)})")
-    print(f"\n🖼️ Saved histogram to: {out_png}")
+    plot_histogram(deltas, out_png, f"delta_E distribution ({tag}, k={args.k}, n={len(deltas)})")
+    print(f"\n   Saved histogram to: {out_png}")
 
     if args.save_deltas:
         out_json = outdir / f"deltaE_samples_{tag}_k{args.k}_n{len(deltas)}.json"
         out_json.parent.mkdir(parents=True, exist_ok=True)
         out_json.write_text(json.dumps({"tag": tag, "k": args.k, "deltas": deltas}, indent=2), encoding="utf-8")
-        print(f"💾 Saved deltas to: {out_json}")
+        print(f" Saved deltas to: {out_json}")
 
     return 0
 

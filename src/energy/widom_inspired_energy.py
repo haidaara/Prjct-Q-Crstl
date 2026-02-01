@@ -1,7 +1,7 @@
 # src/energy/widom_inspired_energy.py
 """
 Widom-inspired energy model for Penrose tilings with LIMITED continuous corrections
-OPTIMIZED VERSION: Vertex class caching for performance
+Vertex class caching for performance
 """
 
 import numpy as np
@@ -49,8 +49,8 @@ class EnergyParameters:
 class WidomInspiredEnergy:
     """
     Energy model inspired by Widom's quasicrystal Hamiltonian concept
-    OPTIMIZED: Vertex class caching for performance
-    LIMITED CONTINUITY: Small corrections create energy variations within Widom classes
+    Vertex class caching for performance
+    Small corrections create energy variations within Widom classes
     """
     
     @classmethod
@@ -253,7 +253,7 @@ class WidomInspiredEnergy:
 
     def _get_cached_vertex_class(self, tile_id: int, tiling_data: Dict) -> str:
         """
-        OPTIMIZED: Get vertex class with caching
+        Get vertex class with caching
         Reduces classifier calls from O(n×neighbors) to O(n)
         """
         if tile_id not in self._vertex_class_cache:
@@ -264,8 +264,8 @@ class WidomInspiredEnergy:
     
     def _compute_continuous_neighbor_interaction(self, tile_id: int, tiling_data: Dict) -> float:
         """
-        Compute LIMITED energy from interactions with neighboring tiles
-        OPTIMIZED: Uses cached vertex classes
+        Compute energy from interactions with neighboring tiles
+        Uses cached vertex classes
         """
         neighbors = self.classifier._get_immediate_neighbors(tile_id, tiling_data)
         
@@ -280,7 +280,7 @@ class WidomInspiredEnergy:
                 neighbor.get("obstacle_type") == "pore"):
                 continue
                 
-            # OPTIMIZED: Use cached vertex class (not recursive energy)
+            # Use cached vertex class (not recursive energy)
             neighbor_class = self._get_cached_vertex_class(neighbor["id"], tiling_data)
             
             # LIMITED continuity: Small corrections based on neighbor class
@@ -316,13 +316,7 @@ class WidomInspiredEnergy:
         # LIMITED continuous scaling
         return self.params.geometric_strain_penalty * avg_deviation / 36.0
     
-    def _compute_phason_strain_energy(self, tile_id: int, tiling_data: Dict) -> float:
-        """
-        PHASON STRAIN ENERGY - CURRENTLY DISABLED
-        Placeholder until proper perpendicular space implementation
-        """
-        return 0.0
-    
+
     def compute_total_energy(self, tiling_data: Dict) -> float:
         """Compute total energy of the tiling with caching optimization"""
         # Clear cache for fresh computation

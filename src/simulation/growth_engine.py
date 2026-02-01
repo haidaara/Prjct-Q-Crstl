@@ -24,7 +24,7 @@ class GrowthSimulator:
     
     def initialize_seed(self, tiling_data: Dict, seed_center: Optional[List[float]] = None) -> Dict:
         """Initialize growth from seed region with configurable center"""
-        print("🌱 Initializing growth seed...")
+        print("   Initializing growth seed...")
         
         # Reset all tiles to ungrown state
         for tile in tiling_data["tiles"]:
@@ -45,13 +45,13 @@ class GrowthSimulator:
         self._update_frontier(tiling_data)
         
         seed_count = len(seed_tiles)
-        print(f"✅ Growth seed: {seed_count} tiles initialized at {seed_center}")
+        print(f"   Growth seed: {seed_count} tiles initialized at {seed_center}")
         
         return tiling_data
     
     def grow_step(self, tiling_data: Dict, obstacles: Dict) -> Tuple[Dict, List[int], Dict]:
         """Single growth step with healing - returns MC stats"""
-        print(f"🌿 Growth step {self.growth_step}...")
+        print(f"   Growth step {self.growth_step}...")
         
         try:
             # Apply temporary growth constraints (CRITICAL FIX)
@@ -80,7 +80,7 @@ class GrowthSimulator:
         }
         self.growth_history.append(step_data)
         
-        print(f"✅ Growth step {self.growth_step}: added {len(new_tiles)} tiles")
+        print(f"   Growth step {self.growth_step}: added {len(new_tiles)} tiles")
         
         return tiling_data, new_tiles, mc_stats
     
@@ -151,7 +151,7 @@ class GrowthSimulator:
     
     def _get_neighbors(self, tile_id: int, tiling_data: Dict) -> List[Dict]:
         """
-        FIXED: Get neighbors using adjacency graph directly
+        Get neighbors using adjacency graph directly
         No longer relies on nonexistent flip_engine method
         """
         neighbors = []

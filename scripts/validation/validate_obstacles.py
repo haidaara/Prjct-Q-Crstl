@@ -17,12 +17,12 @@ sys.path.insert(0, str(project_root))
 
 
 def check_obstacles() -> bool:
-    print("🕳️  VALIDATING OBSTACLES")
+    print("  VALIDATING OBSTACLES")
     print("=" * 60)
 
     obstacle_dir = project_root / "data" / "obstacles" / "pores"
     if not obstacle_dir.exists():
-        print("⚠️  No obstacle data found (data/obstacles/pores/). Run obstacle generation first.")
+        print("  No obstacle data found (data/obstacles/pores/). Run obstacle generation first.")
         return True
 
     files = sorted(obstacle_dir.glob("*.json"))
@@ -48,7 +48,7 @@ def check_obstacles() -> bool:
 
         tiles = data.get("tiles", [])
 
-        # New semantics: pores are removed tiles (still should be counted)
+        # pores are removed tiles (still should be counted)
         counted = sum(
             1 for t in tiles
             if (t.get("obstacle_type") == "pore") or (t.get("removed", False) and t.get("obstacle_type") != "fixed_defect")
@@ -56,14 +56,14 @@ def check_obstacles() -> bool:
 
 
         if expected is None:
-            print(f"⚠️  WARNING {f.name}: expected pore count missing; counted {counted} pore-marked tiles")
+            print(f" WARNING {f.name}: expected pore count missing; counted {counted} pore-marked tiles")
             continue
 
         if counted != expected:
-            print(f"❌ FAIL {f.name}: metadata={expected}, grid_count={counted}")
+            print(f" FAIL {f.name}: metadata={expected}, grid_count={counted}")
             all_passed = False
         else:
-            print(f"✅ PASS {f.name}: {expected} pores confirmed")
+            print(f" PASS {f.name}: {expected} pores confirmed")
 
     return all_passed
 

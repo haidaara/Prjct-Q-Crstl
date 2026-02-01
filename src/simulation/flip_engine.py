@@ -1,7 +1,7 @@
 # src/simulation/flip_engine.py
 """
 Penrose phason flip engine with robust physical constraints
-FIXED VERSION: Consistent neighborhood radius handling (Radius 3)
+Consistent neighborhood radius handling (Radius 3)
 """
 
 import math
@@ -21,7 +21,7 @@ class FlipEngine:
     
     def _rebuild_adjacency_global(self, tiling_data: Dict) -> None:
         """
-        PHYSICS FIX: Global Adjacency Rebuild (Rigorous).
+        Global Adjacency Rebuild.
         Recomputes the entire graph topology from scratch based on current geometry.
         
         Improvements over standard rebuild:
@@ -72,7 +72,7 @@ class FlipEngine:
                 connected_indices = edge_to_tiles.get(edge, [])
 
                 if self.verbose and len(connected_indices) > 2:
-                    print(f"⚠️ WARN: Edge {edge} shared by {len(connected_indices)} tiles: {connected_indices}")
+                    print(f"   WARN: Edge {edge} shared by {len(connected_indices)} tiles: {connected_indices}")
 
                 for neighbor_idx in connected_indices:
                     if neighbor_idx == idx:
@@ -368,7 +368,7 @@ class FlipEngine:
     def _get_two_ring_neighborhood(self, tile_ids: List[int], tiling_data: Dict) -> Set[int]:
         return self._get_k_ring_neighborhood(tile_ids, tiling_data, k=2)
 
-    # [Preserving all existing helper methods...]
+
     def _verify_hexagon_structure(self, cluster, tiling_data, edge_to_tiles):
         all_edges = []
         for tile_id in cluster:

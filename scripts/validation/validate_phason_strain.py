@@ -139,7 +139,7 @@ def main() -> None:
     # High-signal warning (helps interpret reconstruction errors)
     gsd = cal.get("gauge_sum_distribution")
     if isinstance(gsd, dict) and len(gsd) > 1:
-        print(f"⚠️  NOTE: multiple gauge sums exist in calibration: {gsd}")
+        print(f"   NOTE: multiple gauge sums exist in calibration: {gsd}")
         print("    If lifting enforces a single target_sum, other-gauge tiles will show nonzero reconstruction_error.\n")
 
     calc = PhasonStrainCalculator(cal, stiffness=K)

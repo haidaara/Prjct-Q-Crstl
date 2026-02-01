@@ -24,7 +24,7 @@ def region_energy(energy_model, tiling_data, region):
 
 
 def main(trials: int = 20) -> int:
-    print("🧱 DEBUG FLIP GEOMETRY")
+    print(" DEBUG FLIP GEOMETRY")
     print("=" * 60)
 
     base = load_tiling()
@@ -39,7 +39,7 @@ def main(trials: int = 20) -> int:
 
     hexes = flip_engine.find_flippable_hexagons(tiling)
     if not hexes:
-        print("❌ No flippable hexagons found.")
+        print("   ERROR: No flippable hexagons found.")
         return 1
 
     random.shuffle(hexes)
@@ -76,10 +76,10 @@ def main(trials: int = 20) -> int:
         print(f"Trial {tested:02d}: ΔE={(e_after - e_before): .6f} | restore_diff={abs(e_restore - e_before):.3e} | region={len(region)}")
 
         if abs(e_restore - e_before) > 1e-8:
-            print("❌ FAIL: restore did not return to identical energy (state capture/restore bug or hidden mutation).")
+            print("   FAIL: restore did not return to identical energy (state capture/restore bug or hidden mutation).")
             return 1
 
-    print("✅ PASS: flip apply/restore seems consistent for tested samples.")
+    print("   PASS: flip apply/restore seems consistent for tested samples.")
     return 0
 
 

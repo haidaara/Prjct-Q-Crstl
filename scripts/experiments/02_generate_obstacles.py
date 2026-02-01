@@ -1,5 +1,5 @@
 """
-🚀 MILESTONE 2A: HIGH-PERFORMANCE OBSTACLE CREATION PIPELINE
+MILESTONE 2A: HIGH-PERFORMANCE OBSTACLE CREATION PIPELINE
 """
 
 import sys
@@ -22,12 +22,12 @@ import time
 def main():
     start_time = time.time()
     
-    print("🚀 MILESTONE 2A: OBSTACLE CREATION PIPELINE")
+    print("MILESTONE 2A: OBSTACLE CREATION PIPELINE")
     print("=" * 60)
     
     # Load configuration
     config = ConfigManager("configs/phase2_experiments.toml")
-    print(f"📁 Using config: {config.config_path}")
+    print(f"Using config: {config.config_path}")
     
     # Setup output directory structure
     output_dir = setup_output_directory()
@@ -35,13 +35,13 @@ def main():
     # Check if output directory already has data
     existing_files = list(output_dir.glob("**/*.json"))
     if existing_files:
-        print(f"\n⚠️  WARNING: {output_dir} already contains {len(existing_files)} JSON files")
+        print(f"\nWARNING: {output_dir} already contains {len(existing_files)} JSON files")
         print("   This will overwrite existing obstacle configurations")
         print("   Run: python src/utils/archive_obstacles.py to archive existing data")
         
         response = input("\nContinue anyway? (y/n): ")
         if response.lower() != 'y':
-            print("❌ Aborted")
+            print("Aborted")
             return
     
     # Load base tiling
@@ -59,9 +59,9 @@ def main():
     obstacle_config = ObstacleConfig(config)
     visualizer = ObstacleVisualizer(config)
     
-    print("\n🔧 Generating obstacle specifications...")
+    print("\nGenerating obstacle specifications...")
     obstacle_specs = obstacle_config.generate_scalable_obstacles(base_tiling)
-    print(f"✅ Generated {len(obstacle_specs)} obstacle specs")
+    print(f"Generated {len(obstacle_specs)} obstacle specs")
     
     # Create obstacles
     results = create_obstacle_configurations(
@@ -72,7 +72,7 @@ def main():
     # Save comprehensive experiment summary
     save_experiment_summary(results, output_dir, start_time)
     
-    print(f"\n✅ MILESTONE 2A COMPLETED IN {time.time() - start_time:.2f}s")
+    print(f"\ngenerate obstacles completed in {time.time() - start_time:.2f}s")
     print(f"   • Generated {len(results)} obstacle configurations")
     print(f"   • Output: {output_dir}")
     print(f"   • Run verification: python validation/validate_obstacles.py")
@@ -96,17 +96,17 @@ def load_base_tiling():
             with open(path, 'r') as f:
                 tiling_data = json.load(f)
 
-            print(f"📐 Loaded base tiling: {tiling_data['metadata']['tile_count']} tiles")
+            print(f"Loaded base tiling: {tiling_data['metadata']['tile_count']} tiles")
             print(f"   Source: {path}")
             return tiling_data
 
-    print("❌ Error: Missing base tiling.")
+    print("Error: Missing base tiling.")
     raise FileNotFoundError("Processed tiling missing. Run 01_prepare_processed_tiling.py first.")
     return None
 
 
 def setup_output_directory():
-    """Create organized output directory structure - FIXED PATH"""
+    """organize output directory structure"""
     output_dir = Path("data/obstacles")
     output_dir.mkdir(parents=True, exist_ok=True)
     
@@ -123,17 +123,17 @@ def create_obstacle_configurations(obstacle_creator, visualizer, base_tiling, ob
     results = []
     
     for spec_name, obstacle_spec in obstacle_specs.items():
-        print(f"\n🔧 Creating obstacles: {spec_name}")
+        print(f"\nCreating obstacles: {spec_name}")
         
         # Create obstacles
         obstacle_tiling = obstacle_creator.create_obstacles(base_tiling, obstacle_spec)
 
-        # ✅ Physics fix: recompute topology-dependent energy fields after removal
+        # recompute topology-dependent energy fields after removal
         from src.energy.widom_inspired_energy import WidomInspiredEnergy
         energy_model = WidomInspiredEnergy.from_config(obstacle_creator.config)
         energy_model.update_tiling_energy(obstacle_tiling)
 
-        # --- Publication-quality metadata: refresh coordination distribution AFTER topology edits ---
+        # refresh coordination distribution AFTER topology edits ---
         # (Otherwise pores configs keep the "perfect tiling" coordination stats, which becomes stale.)
         coord = {}
         for t in obstacle_tiling["tiles"]:
@@ -178,7 +178,7 @@ def create_obstacle_configurations(obstacle_creator, visualizer, base_tiling, ob
             "metadata": obstacle_tiling["obstacle_metadata"]
         })
         
-        print(f"💾 Saved: {file_path.name}")
+        print(f" Saved: {file_path.name}")
     
     return results
 
@@ -209,7 +209,7 @@ def save_experiment_summary(results, output_dir, start_time):
     with open(summary_file, 'w') as f:
         json.dump(summary, f, indent=2)
     
-    print(f"\n📊 Summary saved: {summary_file.name}")
+    print(f"\nSummary saved: {summary_file.name}")
 
 
 if __name__ == "__main__":

@@ -1,7 +1,6 @@
 # configs/phase2_experiments.toml
 # =====================================================================
-# 🔬 MONOLITHIC PHYSICS CONFIG (01→05)
-# One file = one source of truth for reproducible runs.
+# PHASE 2 CONFIGURATION FILE
 # =====================================================================
 
 [project]
@@ -61,14 +60,14 @@ low_energy_reference = 0.0
 neighbor_interaction_strength = 0.1
 geometric_strain_penalty = 0.2
 
-# [NEW] Surface Tension Physics
+# Surface Tension Physics
 surface_tension_per_bond = 1.0
 matching_rule_weight = 1.0
 continuous_correction_weight = 0.5
 energy_class_thresholds = [0.5, 1.5]
 
 
-# --- phason (Option A-lite) ---
+# --- Phason Parameters ---
 phason_enabled = true
 phason_calibration_file = "configs/phason_calibration.json"
 phason_stiffness = 0.3

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Run config-driven growth experiments with obstacle healing
-FIXED VERSION: All critical issues addressed
 """
 
 import json
@@ -33,7 +32,7 @@ def load_config(config_path: Union[str, Path] = "configs/phase2_experiments.toml
     """Load experiment configuration from TOML"""
     config_path = Path(str(config_path))
     if not config_path.exists():
-        print(f"❌ Config file not found: {config_path}")
+        print(f"Config file not found: {config_path}")
         sys.exit(1)
 
     with open(config_path, 'r') as f:
@@ -69,7 +68,7 @@ def find_obstacle_file(obstacle_type: str, density: float) -> Optional[Path]:
     base_path = Path("data/obstacles")
 
     if not base_path.exists():
-        print(f"⚠️  Obstacle directory not found: {base_path}")
+        print(f"Obstacle directory not found: {base_path}")
         return None
 
     patterns = [
@@ -90,7 +89,7 @@ def find_obstacle_file(obstacle_type: str, density: float) -> Optional[Path]:
 
         if files:
             closest = min(files, key=lambda f: abs(float(f.stem.split('_')[-1]) - density))
-            print(f"⚠️  Using closest density: {closest.stem.split('_')[-1]} (requested: {density})")
+            print(f"Using closest density: {closest.stem.split('_')[-1]} (requested: {density})")
             return closest
     except Exception:
         pass
@@ -113,9 +112,9 @@ def run_growth_experiment(config: dict, experiment_name: Optional[str] = None):
     trace_every = max(1, trace_every)
 
     if verbosity >= 1:
-        print("🧪 Running growth experiment...")
+        print("Running growth experiment...")
         print("=" * 50)
-        print(f"🔧 debug: verbosity={verbosity}, progress_every={progress_every}, trace_every={trace_every}")
+        print(f"debug: verbosity={verbosity}, progress_every={progress_every}, trace_every={trace_every}")
 
     import os, sys
     ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -167,15 +166,15 @@ def run_growth_experiment(config: dict, experiment_name: Optional[str] = None):
     if density > 0:
         obstacle_file = find_obstacle_file(obstacle_type, density)
         if obstacle_file and obstacle_file.exists():
-            print(f"📂 Loading obstacles: {obstacle_file}")
+            print(f"Loading obstacles: {obstacle_file}")
             tiling_data = load_json(obstacle_file)
             input_tiling_path = str(obstacle_file)
         else:
-                    # FIX: Crash if density > 0 but file missing
-                    print(f"❌ CRITICAL ERROR: Obstacle file not found for density {density}")
-                    print(f"   Expected path like: data/obstacles/{obstacle_type}/..._density_{density}.json")
-                    print(f"   Run 'python scripts/02_generate_obstacles.py' to create it.")
-                    sys.exit(1)
+            # FIX: Crash if density > 0 but file missing
+            print(f"CRITICAL ERROR: Obstacle file not found for density {density}")
+            print(f"   Expected path like: data/obstacles/{obstacle_type}/..._density_{density}.json")
+            print(f"   Run 'python scripts/02_generate_obstacles.py' to create it.")
+            sys.exit(1)
     else:
         for base_path in base_paths:
             if base_path.exists():
@@ -186,7 +185,7 @@ def run_growth_experiment(config: dict, experiment_name: Optional[str] = None):
             raise FileNotFoundError("Base tiling file not found")
 
     if verbosity >= 1:
-        print("⚙️  Initializing simulation components...")
+        print("Initializing simulation components...")
     classifier = CombinatorialVertexClassifier()
 
     energy_config = config.get("energy", {})
@@ -221,11 +220,11 @@ def run_growth_experiment(config: dict, experiment_name: Optional[str] = None):
 
     mc_engine.initialize_energy(tiling_data)
     if verbosity >= 1:
-        print(f"📊 Initial energy: {mc_engine.current_energy:.2f}")
+        print(f"Initial energy: {mc_engine.current_energy:.2f}")
 
     growth_steps = growth_config.get("growth_steps", 10)
     if verbosity >= 1:
-        print(f"🌱 Running {growth_steps} growth steps...")
+        print(f"Running {growth_steps} growth steps...")
 
     config_path_used = config.get("_meta_config_path", "configs/phase2_experiments.toml")
     growth_cfg = config.get("growth", {})
@@ -380,7 +379,7 @@ def run_growth_experiment(config: dict, experiment_name: Optional[str] = None):
 
     # 2. Visualization (New: Saves to .../run_XXX/viz/)
     if config.get("metrics", {}).get("save_visualization", False):
-        print(f"🎨 Generating visualization...")
+        print(f"Generating visualization...")
         try:
             from src.viz.static_plots import plot_physics_matrix
             
@@ -394,12 +393,12 @@ def run_growth_experiment(config: dict, experiment_name: Optional[str] = None):
             plot_physics_matrix(tiling_data, save_path=str(viz_path))
             
         except Exception as e:
-            print(f"   ⚠️ Visualization failed: {e}")
+            print(f"   Visualization failed: {e}")
             # import traceback; traceback.print_exc()
 
     if verbosity >= 1:
-        print(f"\n✅ Experiment complete!")
-    print(f"📊 Results saved to: {short_path(experiment_file)}")
+        print(f"\nExperiment complete!")
+    print(f"Results saved to: {short_path(experiment_file)}")
 
     return experiment_data
 
@@ -421,7 +420,7 @@ if __name__ == "__main__":
 
         series = results.get("series", {}).get("growth_steps", [])
         print("\n" + "=" * 50)
-        print("📈 EXPERIMENT SUMMARY:")
+        print("EXPERIMENT SUMMARY:")
         print(f"  Total steps: {len(series)}")
 
         if series:
@@ -431,6 +430,6 @@ if __name__ == "__main__":
                 print(f"  Final defect density: {last_step['defect_density']:.3f}")
 
     except Exception as e:
-        print(f"❌ Error running experiment: {e}")
+        print(f"Error running experiment: {e}")
         traceback.print_exc()
         sys.exit(1)

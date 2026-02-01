@@ -17,7 +17,7 @@ class ConfigManager:
         with self.config_path.open("rb") as f:
             cfg = tomllib.load(f)
     
-        # FIXED: Implement includes merging
+        # Implement includes merging
         includes = cfg.get("includes", {})
         base_name = includes.get("base")
         if base_name:
@@ -31,7 +31,7 @@ class ConfigManager:
                 merged.pop("includes", None)
                 cfg = merged
             else:
-                print(f"⚠️  Base config not found: {base_path}")
+                print(f"   Base config not found: {base_path}")
     
         return cfg
     

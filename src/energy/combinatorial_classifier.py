@@ -1,7 +1,7 @@
 # src/energy/combinatorial_classifier.py
 """
-Physically accurate vertex classification for Penrose tilings
-FIXED VERSION: Uses adjacency graph as primary neighbor source
+vertex classification for Penrose tilings
+Uses adjacency graph as primary neighbor source
 """
 
 import math
@@ -21,7 +21,7 @@ class VertexEnvironment:
 class CombinatorialVertexClassifier:
     """
     Classifies vertex environments using physically meaningful criteria
-    FIXED: Uses adjacency graph as primary neighbor source for correct coordination
+    Uses adjacency graph as primary neighbor source for correct coordination
     """
     
     def __init__(self, angle_tolerance: float = 15.0):
@@ -64,7 +64,7 @@ class CombinatorialVertexClassifier:
     
     def _get_immediate_neighbors(self, tile_id: int, tiling_data: Dict) -> List[Dict]:
         """
-        FIXED: Uses adjacency graph as primary source for correct coordination
+        Uses adjacency graph as primary source for correct coordination
         """
         neighbors = []
         adjacency_graph = tiling_data["adjacency_graph"]
@@ -149,11 +149,6 @@ class CombinatorialVertexClassifier:
 
         return angles
     
-    # In CombinatorialVertexClassifier class (around line 140)
-    def clear_cache(self):
-        """Clear any internal caches"""
-        # This class doesn't have caches yet, but add for future compatibility
-        pass
 
     def _check_geometric_constraints(self, environment: VertexEnvironment) -> Dict[str, bool]:
         violations = {

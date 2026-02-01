@@ -21,7 +21,7 @@ REQUIRED_PATHS = [
 
 
 def main() -> int:
-    print("🧰 SYSTEM DIAGNOSTIC")
+    print("  SYSTEM DIAGNOSTIC")
     print("=" * 60)
 
     missing = []
@@ -29,16 +29,15 @@ def main() -> int:
         if not (project_root / rel).exists():
             missing.append(rel)
     if missing:
-        print("⚠️  Missing expected files:")
+        print("   WARNING: Missing expected files:")
         for m in missing:
             print(f"   - {m}")
     else:
-        print("✅ Core files present")
-
+        print("   Core files present")
     try:
         tiling = load_tiling()
     except Exception as e:
-        print(f"❌ Could not load base tiling: {e}")
+        print(f"   ERROR: Could not load base tiling: {e}")
         return 1
 
     tiles = tiling.get("tiles", [])
@@ -52,7 +51,7 @@ def main() -> int:
     print(f"Flippable active tiles: {flippable}")
     print(f"Seed tiles: {seed}")
 
-    print("✅ Diagnostic complete")
+    print("     Diagnostic complete")
     return 0
 
 

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-🚀 MILESTONE 2B: BATCH SIMULATION RUNNER (FIXED & ROBUST)
+MILESTONE 2B: BATCH SIMULATION RUNNER (FIXED & ROBUST)
 Systematically runs growth experiments across all generated obstacle densities.
 
 Pipeline:
 1. Scan data/obstacles/pores/*.json
 2. For each obstacle file:
-   a. Load simulation config
-   b. Override 'input_tiling' to point to the obstacle file (TRIPLE INJECTION)
-   c. Run Growth Experiment
-   d. Run Forensic Visualization
+    a. Load simulation config
+    b. Override 'input_tiling' to point to the obstacle file (TRIPLE INJECTION)
+    c. Run Growth Experiment
+    d. Run Forensic Visualization
 3. Aggregate results into data/experiments/growth/batch_summary.json
 """
 
@@ -54,7 +54,7 @@ growth_script = import_numbered_script("scripts/experiments/04_run_growth.py", "
 viz_module = import_numbered_script("scripts/validation/visualize_growth_fidelity.py", "viz_fidelity")
 
 def main():
-    print("🚀 BATCH SIMULATION RUNNER: PHASE 2")
+    print("BATCH SIMULATION RUNNER: PHASE 2")
     print("=" * 60)
     
     # 1. Setup Paths
@@ -64,30 +64,30 @@ def main():
     
     # 2. Find Obstacle Files
     if not obstacle_dir.exists():
-        print(f"❌ Obstacle directory not found: {clean_path(obstacle_dir)}")
+        print(f"Obstacle directory not found: {clean_path(obstacle_dir)}")
         return
         
     obstacle_files = sorted(list(obstacle_dir.glob("*.json")))
     if not obstacle_files:
-        print(f"⚠️  No obstacle files found in {clean_path(obstacle_dir)}")
+        print(f"No obstacle files found in {clean_path(obstacle_dir)}")
         return
-        
-    print(f"📂 Found {len(obstacle_files)} obstacle configurations.")
-    print(f"📂 Output directory: {clean_path(output_dir)}")
+    
+    print(f"Found {len(obstacle_files)} obstacle configurations.")
+    print(f"Output directory: {clean_path(output_dir)}")
     
     # 3. Load Base Config
     config_path = "configs/phase2_experiments.toml"
-    print(f"⚙️  Using base config: {config_path}")
+    print(f"Using base config: {config_path}")
     base_config_manager = ConfigManager(config_path)
     # Access the raw dictionary for copying
     base_config = base_config_manager._config 
     
     # Print the Critical Physics Parameters being used
     mc_cfg = base_config.get("monte_carlo", {})
-    print("\n🔬 PHYSICS SETTINGS (Applied to ALL runs):")
-    print(f"   • Temperature: {mc_cfg.get('temperature', '???')} (Should be 0.8)")
-    print(f"   • Radius:      {mc_cfg.get('neighborhood_radius', '???')}")
-    print(f"   • Steps:       {mc_cfg.get('steps_per_growth', '???')}")
+    print("\nPHYSICS SETTINGS (Applied to ALL runs):")
+    print(f"   - Temperature: {mc_cfg.get('temperature', '???')} (Should be 0.8)")
+    print(f"   - Radius:      {mc_cfg.get('neighborhood_radius', '???')}")
+    print(f"   - Steps:       {mc_cfg.get('steps_per_growth', '???')}")
     print("-" * 60)
 
     batch_results = []
@@ -185,7 +185,7 @@ def main():
             gc.collect()
             
         except Exception as e:
-            tqdm.write(f"❌ Failed processing {obs_file.name}: {e}")
+            tqdm.write(f"Failed processing {obs_file.name}: {e}")
             import traceback
             traceback.print_exc()
 
@@ -195,9 +195,9 @@ def main():
         json.dump(batch_results, f, indent=2)
         
     print("\n" + "="*60)
-    print("✅ BATCH COMPLETE")
-    print(f"📂 Results: {clean_path(output_dir)}")
-    print(f"📊 Summary: {clean_path(summary_path)}")
+    print("BATCH COMPLETE")
+    print(f"Results: {clean_path(output_dir)}")
+    print(f"Summary: {clean_path(summary_path)}")
     
     if batch_results:
         try:

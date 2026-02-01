@@ -53,7 +53,7 @@ strain_vmax = 0.3  # Matches our actual max strain (0.15)
 
 treat_immobile_as_fixed = false
 
-# movie defaults (so you don't need CLI / job duplication)
+# Movie defaults (avoids CLI or job duplication)
 fps = 3
 format = "png"
 movie_view = "strain"
@@ -125,7 +125,7 @@ movie_view = "strain"
 
 # override defaults job: 
 strain_vmin = 0.0
-strain_vmax = 0.3  # Matches our actual max strain (0.15)
+strain_vmax = 0.3  # Set relative to maximum system strain (0.15)
 
 # [[viz_jobs.jobs]]
 # kind = "movie"
@@ -133,7 +133,7 @@ strain_vmax = 0.3  # Matches our actual max strain (0.15)
 # movie_view = "energy"
 # outdir = "data/viz/movies/run_006_1260_steps_damage15/"
 
-# # Overrides only for this job: instead of the defaults jobs runner: 
+# Job-specific overrides:
 # movie_dpi = 300
 # energy_vmin = 0.0
 # energy_vmax = 3.0

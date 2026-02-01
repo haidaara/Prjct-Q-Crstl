@@ -64,7 +64,7 @@ def main():
             print(f"🔍 Searching in: {clean_path(search_path)}")
             input_path = find_latest_experiment(search_path)
             
-        print(f"📂 Loading State: {input_path.name}")
+        print(f"  Loading State: {input_path.name}")
         
         # 2. Load Data (Robust)
         tiling_data = load_tiling_state(input_path)
@@ -90,7 +90,7 @@ def main():
         plot_physics_matrix(tiling_data, save_path=str(output_path))
 
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\n  Error: {e}")
         if not isinstance(e, (FileNotFoundError, ValueError)):
             import traceback
             traceback.print_exc()

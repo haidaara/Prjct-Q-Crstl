@@ -137,12 +137,12 @@ def main() -> int:
 
     input_dir = PROJECT_ROOT / args.dir
     if not input_dir.exists():
-        print(f"❌ Input dir not found: {input_dir}")
+        print(f"   Input dir not found: {input_dir}")
         return 1
 
     files = load_results_files(input_dir, args.pattern)
     if not files:
-        print(f"⚠️ No files found in {input_dir} matching {args.pattern}")
+        print(f"    No files found in {input_dir} matching {args.pattern}")
         return 0
 
     rows = [parse_one_file(fp) for fp in files]
@@ -177,12 +177,12 @@ def main() -> int:
         w.writeheader()
         for r in rows:
             w.writerow({k: r.get(k) for k in fieldnames})
-    print(f"\n💾 Wrote CSV: {out_csv}")
+    print(f"\n   Wrote CSV: {out_csv}")
 
     # Plot
     out_png = outdir / "temperature_sweep.png"
     plot_summary(rows, out_png)
-    print(f"🖼️  Wrote plot: {out_png}")
+    print(f"    Wrote plot: {out_png}")
 
     return 0
 

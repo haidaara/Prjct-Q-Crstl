@@ -3,7 +3,7 @@
 scripts/dev_tools/calibrate_phason_basis.py
 
 One-time calibration:
-  center ≈ M_par @ lattice_coords + origin
+  center = M_par @ lattice_coords + origin
 
 Saves a JSON calibration file used by PhasonStrainCalculator.
 """
@@ -82,7 +82,7 @@ def calibrate(tiling_path: str, *, exclude_boundary: bool) -> dict:
     for col, pid in enumerate(pair_ids):
         P[pid, col] = 1.0
 
-    # Fit affine + pair offsets:  R ≈ M_par @ N5 + D @ P + origin
+    # Fit affine + pair offsets:  R = M_par @ N5 + D @ P + origin
     ones = np.ones((1, N5.shape[1]), dtype=float)
     X = np.vstack([N5, P, ones])          # (5+10+1)=16 x N
     A = R @ np.linalg.pinv(X)             # 2 x 16
@@ -172,7 +172,7 @@ def main() -> None:
 
     
 
-    print("✅ Phason calibration saved")
+    print("   Phason calibration saved")
     print(f"   input : {input_path}")
     print(f"   output: {output_path}")
     print(f"   tiles : {calib['num_tiles_used']}")
@@ -184,8 +184,7 @@ def main() -> None:
         print(f"   gauge_sum_distribution: {calib.get('gauge_sum_distribution', {})}")
         gsd = calib.get("gauge_sum_distribution", {})
         if isinstance(gsd, dict) and len(gsd) > 1:
-            print("   ⚠️  NOTE: multiple gauge sums exist -> a single enforced target_sum can cause lift mismatch.")
-
+            print("   WARNING: multiple gauge sums exist -> a single enforced target_sum can cause lift mismatch.")
 
 
 if __name__ == "__main__":
