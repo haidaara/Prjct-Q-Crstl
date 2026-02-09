@@ -1,0 +1,56 @@
+{
+  "timestamp": "2026-02-01T14:59:49.531308",
+  "energy_model": "WidomInspiredQuasicrystalHamiltonian",
+  "version": "OptionA_WithSurfaceTension",
+  "vertex_energy_hierarchy": {
+    "high_energy_defect": 2.0,
+    "medium_energy_strained": 1.0,
+    "low_energy_ideal": 0.0
+  },
+  "interaction_terms": {
+    "neighbor_elastic_coupling": 0.1,
+    "geometric_strain_penalty": 0.2,
+    "phason_strain_penalty": 0.0
+  },
+  "surface_tension_parameters": {
+    "surface_tension_per_bond": 1.0,
+    "matching_rule_weight": 1.0,
+    "continuous_correction_weight": 0.5
+  },
+  "classification_thresholds": {
+    "energy_class_thresholds": [
+      0.5,
+      1.5
+    ],
+    "treat_ungrown_as_vacuum": false
+  },
+  "phason_parameters": {
+    "enabled": true,
+    "stiffness_K": 0.3,
+    "weight": 0.5,
+    "normalize_by_degree": true,
+    "cache_max": 200000,
+    "calibration_file": "configs/phason_calibration.json",
+    "calibration_loaded": true,
+    "calibration_sha256_12": "ecc08a2099ea",
+    "calibration_digest": {
+      "target_sum": -3,
+      "allowed_sums": null,
+      "gauge_sum_distribution": {
+        "-3": 2226,
+        "-2": 2180
+      },
+      "reconstruction_error_mean_per_tile": 6.93658274398029e-14,
+      "reconstruction_error_max_per_tile": 2.0664910141732583e-13,
+      "pair_offsets_count": 10
+    },
+    "note": "multiple gauge sums present; lifting must allow more than one sum"
+  },
+  "semantic_clarification": {
+    "vertex_class": "Geometric classification (pure Widom)",
+    "energy_class": "Physics outcome (geometry + surface + strain)",
+    "boundary_kind": "Type of boundary interface",
+    "is_boundary": "Missing bonds > 0",
+    "surface_energy": "Energy from missing bonds only"
+  }
+}
