@@ -12,7 +12,7 @@ Example simulation outputs from the Simulation Framework are publicly available 
 
 ### Data Examples
 
-Small representative files for quick testing are in [data/examples/](https://github.com/haidaara/Prjct-Q-Crstl/data/examples/).  
+Small representative files for quick testing are in [data/examples/](https://github.com/haidaara/Prjct-Q-Crstl/data/sample_examples/).  
 
 ## Pipeline: 
 To run the full project pipeline, execute the following steps in order.
@@ -72,5 +72,6 @@ python scripts/experiments/03_obstacle_healing.py --config configs/obstacle_heal
 #### 6th: Run the Growth Experiment
 
 *Upcoming step...*
+
 
 ---
